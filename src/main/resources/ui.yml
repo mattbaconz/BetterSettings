@@ -1,0 +1,239 @@
+# ============================================
+# BetterSettings - UI Configuration
+# ============================================
+# Customize the look and feel of the settings GUI
+# ============================================
+
+# GUI Title
+title:
+  # Main title (supports color codes & hex colors &#RRGGBB)
+  text: "&6⚙ &ePlayer Settings"
+  
+  # Show page numbers when paginated
+  show-page-numbers: true
+  
+  # Page number format
+  page-format: " &7({current}/{total})"
+  
+  # Category view title format
+  category-format: "&6⚙ &e{category}"
+
+# GUI Layout
+layout:
+  # GUI size (9, 18, 27, 36, 45, 54)
+  # Common configurations:
+  #   27 = Normal chest (3 rows) - use items-per-page: 18
+  #   54 = Double chest (6 rows) - use items-per-page: 45
+  size: 54
+  
+  # Items per page (settings displayed before pagination)
+  # Recommended values:
+  #   For size 27: use 18 (leaves bottom row for navigation)
+  #   For size 54: use 45 (leaves bottom row for navigation)
+  items-per-page: 45
+  
+  # Enable category system
+  categories-enabled: true
+  
+  # Category selection mode: "menu" or "tabs"
+  # menu = Show category selection first, then settings
+  # tabs = Show all settings with category separators
+  category-mode: "menu"
+
+# Visual Elements
+visual:
+  # Border decoration
+  border:
+    enabled: true
+    material: "BLACK_STAINED_GLASS_PANE"
+    name: " "
+    
+  # Filler items (empty slots)
+  filler:
+    enabled: false
+    material: "GRAY_STAINED_GLASS_PANE"
+    name: " "
+  
+  # Setting item appearance
+  setting-item:
+    # Show enchantment glow when enabled
+    glow-when-enabled: true
+    
+    # Lore format
+    lore:
+      enabled-text: "&a✓ Enabled"
+      disabled-text: "&c✗ Disabled"
+      click-hint: "&7Click to toggle"
+      category-hint: "&8Category: &7{category}"
+      permission-hint: "&8Permission: &7{permission}"
+      
+    # Show additional info in lore
+    show-category: true
+    show-permission: false
+    show-click-hint: true
+
+# Navigation Buttons
+navigation:
+  # Previous page button
+  previous:
+    enabled: true
+    slot: 45
+    material: "ARROW"
+    name: "&e← Previous Page"
+    lore:
+      - "&7Page {page}/{total}"
+      - ""
+      - "&7Click to go back"
+  
+  # Next page button
+  next:
+    enabled: true
+    slot: 53
+    material: "ARROW"
+    name: "&eNext Page →"
+    lore:
+      - "&7Page {page}/{total}"
+      - ""
+      - "&7Click to continue"
+  
+  # Info/Help button
+  info:
+    enabled: true
+    slot: 49
+    material: "BOOK"
+    name: "&6Settings Menu"
+    lore:
+      - "&7Page &e{page}&7/&e{total}"
+      - "&7Total Settings: &e{count}"
+      - ""
+      - "&7Click settings to toggle"
+  
+  # Back to categories button (when in category view)
+  back:
+    enabled: true
+    slot: 45
+    material: "BARRIER"
+    name: "&cBack to Categories"
+    lore:
+      - "&7Return to category selection"
+
+# Category Icons
+categories:
+  # Default category (uncategorized settings)
+  default:
+    id: "uncategorized"
+    name: "&7Uncategorized"
+    icon: "CHEST"
+    priority: 999
+    permission: null
+  
+  # Built-in categories
+  communication:
+    id: "communication"
+    name: "&bCommunication"
+    icon: "PAPER"
+    priority: 1
+    permission: null
+    description:
+      - "&7Chat and messaging settings"
+      - ""
+      - "&eClick to view settings"
+  
+  display:
+    id: "display"
+    name: "&dDisplay"
+    icon: "ENDER_EYE"
+    priority: 2
+    permission: null
+    description:
+      - "&7Visual and display settings"
+      - ""
+      - "&eClick to view settings"
+  
+  gameplay:
+    id: "gameplay"
+    name: "&aGameplay"
+    icon: "DIAMOND_SWORD"
+    priority: 3
+    permission: null
+    description:
+      - "&7Gameplay mechanics settings"
+      - ""
+      - "&eClick to view settings"
+  
+  protection:
+    id: "protection"
+    name: "&6Protection"
+    icon: "SHIELD"
+    priority: 4
+    permission: null
+    description:
+      - "&7Safety and protection settings"
+      - ""
+      - "&eClick to view settings"
+  
+  notifications:
+    id: "notifications"
+    name: "&eNotifications"
+    icon: "BELL"
+    priority: 5
+    permission: null
+    description:
+      - "&7Notification and alert settings"
+      - ""
+      - "&eClick to view settings"
+
+# Sounds (optional - requires Paper API)
+sounds:
+  # Play sound when opening GUI
+  open:
+    enabled: true
+    sound: "UI_BUTTON_CLICK"
+    volume: 1.0
+    pitch: 1.0
+  
+  # Play sound when toggling setting
+  toggle:
+    enabled: true
+    sound: "BLOCK_NOTE_BLOCK_PLING"
+    volume: 0.5
+    pitch: 1.5
+  
+  # Play sound when navigating pages
+  navigate:
+    enabled: true
+    sound: "UI_BUTTON_CLICK"
+    volume: 0.5
+    pitch: 1.2
+  
+  # Play sound when action is denied
+  deny:
+    enabled: true
+    sound: "ENTITY_VILLAGER_NO"
+    volume: 0.5
+    pitch: 1.0
+
+# Animations (optional)
+animations:
+  # Animate GUI opening
+  open-animation:
+    enabled: false
+    type: "fade" # fade, slide, none
+    duration: 10 # ticks
+  
+  # Animate setting toggle
+  toggle-animation:
+    enabled: false
+    type: "flash" # flash, none
+    duration: 5 # ticks
+
+# Performance
+performance:
+  # Cache rendered items
+  cache-items: true
+  
+  # Refresh GUI after toggle
+  refresh-on-toggle: true
+  
+  # Async GUI rendering
+  async-render: false

@@ -1,0 +1,553 @@
+# ============================================
+# BetterSettings - Built-in Settings Configuration
+# ============================================
+# Configure all built-in settings here
+# Each setting can have:
+#   - enabled: true/false
+#   - default-state: true/false
+#   - permission: permission node or null
+#   - icon: Material name
+#   - description: Display name (supports color codes)
+#   - category: Category ID (see ui.yml)
+#   - priority: Sort order (lower = first)
+# ============================================
+
+# Global Chat Setting
+chat:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: PAPER
+  description: "&eToggle global chat messages"
+  category: "communication"
+  priority: 1
+
+# Private Messages Setting
+private-messages:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: ENDER_PEARL
+  description: "&eToggle private messages"
+  category: "communication"
+  priority: 2
+
+# Scoreboard Setting
+scoreboard:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: OAK_SIGN
+  description: "&eToggle scoreboard visibility"
+  category: "display"
+  priority: 1
+
+# Player Visibility Setting
+player-visibility:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: ENDER_EYE
+  description: "&eToggle player visibility"
+  category: "display"
+  priority: 2
+
+# Drop Protection Setting
+drop-protection:
+  enabled: true
+  default-state: false
+  permission: null
+  icon: BARRIER
+  description: "&ePrevent accidental item drops (sneak to drop)"
+  category: "protection"
+  priority: 1
+
+# Auto-Pickup Setting
+auto-pickup:
+  enabled: true
+  default-state: false
+  permission: null
+  icon: HOPPER
+  description: "&eAutomatically pickup dropped items"
+  category: "gameplay"
+  priority: 1
+
+# Flight Mode Setting
+flight:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.flight"
+  icon: ELYTRA
+  description: "&eToggle flight mode"
+  category: "gameplay"
+  priority: 2
+
+# Death Messages Setting
+death-messages:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: SKELETON_SKULL
+  description: "&eToggle death message visibility"
+  category: "communication"
+  priority: 3
+
+# Join/Leave Messages Setting
+join-leave-messages:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: OAK_DOOR
+  description: "&eToggle join/leave message visibility"
+  category: "communication"
+  priority: 4
+
+# Teleport Requests Setting
+teleport-requests:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: ENDER_PEARL
+  description: "&eToggle teleport requests from other players"
+  category: "communication"
+  priority: 5
+
+# Trade Requests Setting
+trade-requests:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: EMERALD
+  description: "&eToggle trade requests from other players"
+  category: "communication"
+  priority: 6
+
+# PvP Toggle Setting
+pvp:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: DIAMOND_SWORD
+  description: "&eToggle PvP combat"
+  category: "gameplay"
+  priority: 3
+
+# Particle Effects Setting
+particle-effects:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: BLAZE_POWDER
+  description: "&eToggle particle effects visibility"
+  category: "display"
+  priority: 3
+
+# Sound Effects Setting
+sound-effects:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: NOTE_BLOCK
+  description: "&eToggle sound effects"
+  category: "display"
+  priority: 4
+
+# Weather Preference Setting
+weather:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: WATER_BUCKET
+  description: "&eToggle weather effects (client-side)"
+  category: "display"
+  priority: 5
+
+# Time Preference Setting
+time:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: CLOCK
+  description: "&eToggle time synchronization (client-side)"
+  category: "display"
+  priority: 6
+
+# Mob Spawning Notifications
+mob-spawn-notifications:
+  enabled: true
+  default-state: false
+  permission: null
+  icon: ZOMBIE_HEAD
+  description: "&eNotify when mobs spawn nearby"
+  category: "notifications"
+  priority: 1
+
+# Achievement Notifications
+achievement-notifications:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: EXPERIENCE_BOTTLE
+  description: "&eToggle achievement notifications"
+  category: "notifications"
+  priority: 2
+
+# Friend Requests Setting
+friend-requests:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: PLAYER_HEAD
+  description: "&eToggle friend requests"
+  category: "communication"
+  priority: 7
+
+# Inventory Protection
+inventory-protection:
+  enabled: true
+  default-state: false
+  permission: null
+  icon: CHEST
+  description: "&ePrevent inventory modifications in certain areas"
+  category: "protection"
+  priority: 2
+
+# Damage Indicators
+damage-indicators:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: IRON_SWORD
+  description: "&eShow damage numbers when hitting entities"
+  category: "display"
+  priority: 7
+
+# Auto-Sprint Setting
+auto-sprint:
+  enabled: true
+  default-state: false
+  permission: null
+  icon: GOLDEN_BOOTS
+  description: "&eAutomatically sprint when moving forward"
+  category: "gameplay"
+  priority: 4
+
+# Night Vision Setting
+night-vision:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.nightvision"
+  icon: GOLDEN_CARROT
+  description: "&eToggle permanent night vision"
+  category: "display"
+  priority: 8
+
+# Action Bar Messages
+action-bar-messages:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: WRITABLE_BOOK
+  description: "&eToggle action bar messages"
+  category: "notifications"
+  priority: 3
+
+# Boss Bar Notifications
+boss-bar-notifications:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: WITHER_SKELETON_SKULL
+  description: "&eToggle boss bar notifications"
+  category: "notifications"
+  priority: 4
+
+# Title Messages
+title-messages:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: PAINTING
+  description: "&eToggle title and subtitle messages"
+  category: "notifications"
+  priority: 5
+
+# Chat Mentions
+chat-mentions:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: BELL
+  description: "&eGet notified when mentioned in chat"
+  category: "communication"
+  priority: 8
+
+# Direct Messages Sound
+dm-sound:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: GOAT_HORN
+  description: "&ePlay sound when receiving direct messages"
+  category: "communication"
+  priority: 9
+
+# Auto-Respawn
+auto-respawn:
+  enabled: true
+  default-state: false
+  permission: null
+  icon: TOTEM_OF_UNDYING
+  description: "&eAutomatically respawn after death"
+  category: "gameplay"
+  priority: 5
+
+# Keep Inventory Reminder
+keep-inventory-reminder:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: ENDER_CHEST
+  description: "&eRemind about keep inventory status"
+  category: "notifications"
+  priority: 6
+
+# Mob Griefing Notifications
+mob-griefing-notifications:
+  enabled: true
+  default-state: false
+  permission: null
+  icon: CREEPER_HEAD
+  description: "&eNotify when mobs damage your builds"
+  category: "notifications"
+  priority: 7
+
+# Fire Spread Warnings
+fire-spread-warnings:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: FLINT_AND_STEEL
+  description: "&eWarn when fire spreads near you"
+  category: "notifications"
+  priority: 8
+
+# Explosion Warnings
+explosion-warnings:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: TNT
+  description: "&eWarn about nearby explosions"
+  category: "notifications"
+  priority: 9
+
+# AFK Status
+afk-status:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: RED_BED
+  description: "&eShow AFK status to other players"
+  category: "display"
+  priority: 9
+
+# Vanish Mode
+vanish:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.vanish"
+  icon: GLASS
+  description: "&eBecome invisible to other players"
+  category: "display"
+  priority: 10
+
+# God Mode
+god-mode:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.godmode"
+  icon: ENCHANTED_GOLDEN_APPLE
+  description: "&eToggle invincibility"
+  category: "gameplay"
+  priority: 6
+
+# Speed Boost
+speed-boost:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.speed"
+  icon: SUGAR
+  description: "&eToggle speed boost effect"
+  category: "gameplay"
+  priority: 7
+
+# Jump Boost
+jump-boost:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.jump"
+  icon: RABBIT_FOOT
+  description: "&eToggle jump boost effect"
+  category: "gameplay"
+  priority: 8
+
+# Water Breathing
+water-breathing:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.waterbreathing"
+  icon: PUFFERFISH
+  description: "&eToggle permanent water breathing"
+  category: "gameplay"
+  priority: 9
+
+# Fire Resistance
+fire-resistance:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.fireresistance"
+  icon: MAGMA_CREAM
+  description: "&eToggle permanent fire resistance"
+  category: "gameplay"
+  priority: 10
+
+# Fall Damage
+fall-damage:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: FEATHER
+  description: "&eToggle fall damage"
+  category: "protection"
+  priority: 3
+
+# Hunger Loss
+hunger-loss:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: COOKED_BEEF
+  description: "&eToggle hunger depletion"
+  category: "gameplay"
+  priority: 11
+
+# Mob Targeting
+mob-targeting:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: ZOMBIE_HEAD
+  description: "&eToggle whether mobs can target you"
+  category: "protection"
+  priority: 4
+
+# Item Pickup
+item-pickup:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: HOPPER_MINECART
+  description: "&eToggle ability to pick up items"
+  category: "gameplay"
+  priority: 12
+
+# Block Break Particles
+block-break-particles:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: DIAMOND_PICKAXE
+  description: "&eToggle block break particles"
+  category: "display"
+  priority: 11
+
+# Entity Collision
+entity-collision:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: SLIME_BALL
+  description: "&eToggle collision with other entities"
+  category: "gameplay"
+  priority: 13
+
+# Command Spy
+command-spy:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.commandspy"
+  icon: SPYGLASS
+  description: "&eSee commands used by other players"
+  category: "notifications"
+  priority: 10
+
+# Social Spy
+social-spy:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.socialspy"
+  icon: ENDER_EYE
+  description: "&eSee private messages between players"
+  category: "notifications"
+  priority: 11
+
+# Teleport Cooldown Bypass
+teleport-cooldown-bypass:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.tpcooldownbypass"
+  icon: ENDER_PEARL
+  description: "&eBypass teleport cooldowns"
+  category: "gameplay"
+  priority: 14
+
+# Build Mode
+build-mode:
+  enabled: true
+  default-state: false
+  permission: "bettersettings.buildmode"
+  icon: BRICKS
+  description: "&eToggle creative-like building features"
+  category: "gameplay"
+  priority: 15
+
+# Scoreboard Numbers
+scoreboard-numbers:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: REDSTONE
+  description: "&eShow/hide scoreboard numbers"
+  category: "display"
+  priority: 12
+
+# Tab List
+tab-list:
+  enabled: true
+  default-state: true
+  permission: null
+  icon: PLAYER_HEAD
+  description: "&eToggle tab list visibility"
+  category: "display"
+  priority: 13
+
+# Coordinates Display
+coordinates-display:
+  enabled: true
+  default-state: false
+  permission: null
+  icon: COMPASS
+  description: "&eShow coordinates in action bar"
+  category: "display"
+  priority: 14
+
+# Biome Display
+biome-display:
+  enabled: true
+  default-state: false
+  permission: null
+  icon: MAP
+  description: "&eShow current biome in action bar"
+  category: "display"
+  priority: 15

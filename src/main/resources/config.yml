@@ -1,0 +1,21 @@
+# ============================================
+# BetterSettings - Main Configuration
+# ============================================
+# A lightweight, lag-free player settings management system
+# for Paper/Purpur/Folia servers (1.20.5+)
+# ============================================
+#
+# Configuration Files:
+#   config.yml       - Main settings (this file)
+#   settings.yml     - Built-in settings configuration
+#   messages.yml     - All user-facing messages
+#   performance.yml  - Performance tuning options
+#   settings/*.yml   - Custom setting definitions
+#
+# ============================================
+
+# GUI Settings
+gui:
+  # Title displayed at the top of the settings GUI
+  # Supports legacy color codes (&) and hex colors (&#RRGGBB)
+  title: "&6⚙ &ePlayer Settings"
