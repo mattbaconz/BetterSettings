@@ -63,20 +63,26 @@ That's it! Your players can now customize their experience.
 
 ## 🎯 Built-in Settings
 
-### 💬 Communication (9 settings)
-Global Chat • Private Messages • Death Messages • Join/Leave Messages • Teleport Requests • Trade Requests • Friend Requests • Chat Mentions • DM Sound
+**29 Fully Functional Settings** + 31 API Framework Settings
 
-### 👁️ Display (15 settings)
-Scoreboard • Player Visibility • Particle Effects • Sound Effects • Weather • Time • Damage Indicators • Night Vision • AFK Status • Vanish • Block Break Particles • Scoreboard Numbers • Tab List • Coordinates Display • Biome Display
+### 💬 Communication (4 working, 5 API-only)
+✅ Global Chat • ✅ Private Messages • ✅ Death Messages • ✅ Join/Leave Messages • 🔌 Teleport Requests • 🔌 Trade Requests • 🔌 Friend Requests • 🔌 Chat Mentions • 🔌 DM Sound
 
-### 🎮 Gameplay (15 settings)
-Auto-Pickup • Flight • PvP • Auto-Sprint • Auto-Respawn • God Mode • Speed Boost • Jump Boost • Water Breathing • Fire Resistance • Hunger Loss • Item Pickup • Entity Collision • Teleport Cooldown Bypass • Build Mode
+### 👁️ Display (7 working, 8 API-only)
+✅ Scoreboard • ✅ Player Visibility • 🔌 Particle Effects • 🔌 Sound Effects • ✅ Weather • ✅ Time • 🔌 Damage Indicators • ✅ Night Vision • 🔌 AFK Status • ✅ Vanish • 🔌 Block Break Particles • 🔌 Scoreboard Numbers • ✅ Tab List • 🔌 Coordinates Display • 🔌 Biome Display
 
-### 🛡️ Protection (4 settings)
-Drop Protection • Inventory Protection • Fall Damage • Mob Targeting
+### 🎮 Gameplay (13 working, 2 API-only)
+✅ Auto-Pickup • ✅ Flight • ✅ PvP • ✅ Auto-Sprint • ✅ Auto-Respawn • ✅ God Mode • ✅ Speed Boost • ✅ Jump Boost • ✅ Water Breathing • ✅ Fire Resistance • ✅ Hunger Loss • ✅ Item Pickup • ✅ Entity Collision • 🔌 Teleport Cooldown Bypass • 🔌 Build Mode
 
-### 🔔 Notifications (11 settings)
-Mob Spawn • Achievements • Action Bar • Boss Bar • Titles • Keep Inventory Reminder • Mob Griefing • Fire Spread • Explosions • Command Spy • Social Spy
+### 🛡️ Protection (4 working)
+✅ Drop Protection • ✅ Inventory Protection • ✅ Fall Damage • ✅ Mob Targeting
+
+### 🔔 Notifications (11 API-only)
+🔌 Mob Spawn • 🔌 Achievements • 🔌 Action Bar • 🔌 Boss Bar • 🔌 Titles • 🔌 Keep Inventory Reminder • 🔌 Mob Griefing • 🔌 Fire Spread • 🔌 Explosions • 🔌 Command Spy • 🔌 Social Spy
+
+**Legend:** ✅ = Fully Functional | 🔌 = API Framework (requires plugin integration)
+
+> **Note:** Settings marked with 🔌 are placeholders that save player preferences but require integration with other plugins to function. See [SETTINGS_STATUS.md](SETTINGS_STATUS.md) for details.
 
 ## 🔌 Developer API
 
