@@ -11,15 +11,35 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scoreboard.Scoreboard;
 
+import java.util.Set;
+import java.util.logging.Level;
+
 /**
  * Registers all built-in settings provided by BetterSettings.
  * Settings are now fully configurable via settings.yml.
  */
 public class BuiltinSettings {
 
+    private static final Set<String> RESTORABLE_SETTING_IDS = Set.of(
+        "bettersettings_scoreboard",
+        "bettersettings_visibility",
+        "bettersettings_weather",
+        "bettersettings_time",
+        "bettersettings_nightvision",
+        "bettersettings_flight",
+        "bettersettings_godmode",
+        "bettersettings_speed",
+        "bettersettings_jump",
+        "bettersettings_waterbreathing",
+        "bettersettings_fireresistance",
+        "bettersettings_collision",
+        "bettersettings_vanish",
+        "bettersettings_tablist"
+    );
+
     public static void registerAll(BetterSettings plugin) {
         SettingsRegistry registry = SettingsRegistry.getInstance();
-        FileConfiguration config = plugin.getConfigManager().getSettingsConfig();
+        FileConfiguration config = plugin.getConfigManager().getEffectiveSettingsConfig();
         
         // Communication settings
         if (config.getBoolean("chat.enabled", true)) {
@@ -201,9 +221,61 @@ public class BuiltinSettings {
             registry.registerSetting(createSetting(plugin, "mob-targeting", "bettersettings_mobtargeting", null));
         }
     }
+
+    /** Reapplies stored stateful native settings without firing change events or configured actions. */
+    public static void restorePlayerState(BetterSettings plugin, Player player) {
+        SettingsRegistry registry = SettingsRegistry.getInstance();
+        for (String id : RESTORABLE_SETTING_IDS) {
+            if (!plugin.getDataManager().hasSettingValue(player.getUniqueId(), id)) continue;
+            Setting setting = registry.getSetting(id);
+            if (setting == null) continue;
+            boolean permitted = setting.getPermission() == null || player.hasPermission(setting.getPermission());
+            boolean value = permitted && plugin.getDataManager().getSetting(player.getUniqueId(), id, false);
+            try {
+                if (!setting.onToggle(player, value)) {
+                    plugin.getLogger().warning("Native setting restore was rejected for " + id
+                        + " and player " + player.getName());
+                }
+            } catch (RuntimeException exception) {
+                plugin.getLogger().log(Level.WARNING,
+                    "Failed to restore native setting " + id + " for " + player.getName(), exception);
+            }
+        }
+
+        Setting vanish = registry.getSetting("bettersettings_vanish");
+        Setting visibility = registry.getSetting("bettersettings_visibility");
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (other.equals(player)) continue;
+            boolean vanishPermitted = vanish != null
+                && (vanish.getPermission() == null || other.hasPermission(vanish.getPermission()));
+            if (plugin.getDataManager().hasSettingValue(other.getUniqueId(), "bettersettings_vanish")
+                && vanishPermitted && plugin.getDataManager().getSetting(
+                    other.getUniqueId(), "bettersettings_vanish", false)) {
+                player.hidePlayer(plugin, other);
+            }
+
+            boolean visibilityPermitted = visibility != null
+                && (visibility.getPermission() == null || other.hasPermission(visibility.getPermission()));
+            if (plugin.getDataManager().hasSettingValue(other.getUniqueId(), "bettersettings_visibility")
+                && shouldHideNewArrival(plugin.getDataManager().getSetting(
+                    other.getUniqueId(), "bettersettings_visibility", true), visibilityPermitted)) {
+                other.getScheduler().run(plugin, task -> {
+                    if (other.isOnline() && player.isOnline()) other.hidePlayer(plugin, player);
+                }, null);
+            }
+        }
+    }
+
+    static Set<String> restorableSettingIds() {
+        return RESTORABLE_SETTING_IDS;
+    }
+
+    static boolean shouldHideNewArrival(boolean storedVisibility, boolean permitted) {
+        return permitted && !storedVisibility;
+    }
     
     private static Setting createSetting(BetterSettings plugin, String configKey, String id, ToggleHandler handler) {
-        FileConfiguration config = plugin.getConfigManager().getSettingsConfig();
+        FileConfiguration config = plugin.getConfigManager().getEffectiveSettingsConfig();
         
         return new Setting() {
             @Override
@@ -220,7 +292,7 @@ public class BuiltinSettings {
             public ItemStack getIcon(Player player, boolean state) {
                 try {
                     String materialName = config.getString(configKey + ".icon", "PAPER");
-                    return new ItemStack(Material.valueOf(materialName));
+                    return new ItemStack(Material.valueOf(materialName.toUpperCase(java.util.Locale.ROOT)));
                 } catch (IllegalArgumentException e) {
                     return new ItemStack(Material.PAPER);
                 }
@@ -241,9 +313,12 @@ public class BuiltinSettings {
             public com.bettersettings.api.SettingCategory getCategory() {
                 String categoryId = config.getString(configKey + ".category", null);
                 if (categoryId != null) {
-                    return SettingsRegistry.getInstance().getCategory(categoryId);
+                    com.bettersettings.api.SettingCategory category = SettingsRegistry.getInstance().getCategory(categoryId);
+                    if (category != null) {
+                        return category;
+                    }
                 }
-                return null;
+                return SettingsRegistry.getInstance().getCategory("uncategorized");
             }
             
             @Override

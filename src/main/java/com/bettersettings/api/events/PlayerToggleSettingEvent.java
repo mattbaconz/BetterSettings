@@ -13,8 +13,7 @@ import org.jetbrains.annotations.NotNull;
  * and the player's preference will remain unchanged.
  * </p>
  * <p>
- * This event is called synchronously on the player's region scheduler,
- * making it safe to perform player-specific operations.
+ * This event is called synchronously from the player's scheduled GUI interaction.
  * </p>
  *
  * @since 1.0.0

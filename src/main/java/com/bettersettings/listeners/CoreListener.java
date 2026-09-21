@@ -23,8 +23,7 @@ import java.util.HashMap;
 import java.util.UUID;
 
 /**
- * Core event listener that handles ALL built-in setting logic.
- * Implements functional behavior for all 60+ settings.
+ * Core event listener for BetterSettings-owned native behaviors.
  */
 public class CoreListener implements Listener {
     
@@ -208,11 +207,11 @@ public class CoreListener implements Listener {
         // Auto-respawn
         boolean autoRespawn = dataManager.getSetting(player.getUniqueId(), "bettersettings_autorespawn", false);
         if (autoRespawn) {
-            Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            player.getScheduler().runDelayed(plugin, task -> {
                 if (player.isDead()) {
                     player.spigot().respawn();
                 }
-            }, 1L);
+            }, null, 1L);
         }
     }
     

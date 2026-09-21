@@ -20,17 +20,9 @@ title:
 
 # GUI Layout
 layout:
-  # GUI size (9, 18, 27, 36, 45, 54)
-  # Common configurations:
-  #   27 = Normal chest (3 rows) - use items-per-page: 18
-  #   54 = Double chest (6 rows) - use items-per-page: 45
+  # The current bordered and tabbed layouts use six rows and 28 setting slots.
+  # Other values are treated as 54 so navigation slots always remain valid.
   size: 54
-  
-  # Items per page (settings displayed before pagination)
-  # Recommended values:
-  #   For size 27: use 18 (leaves bottom row for navigation)
-  #   For size 54: use 45 (leaves bottom row for navigation)
-  items-per-page: 45
   
   # Enable category system
   categories-enabled: true

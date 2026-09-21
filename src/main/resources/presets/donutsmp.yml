@@ -1,0 +1,174 @@
+# DonutSMP-inspired organization. Names are generic and no DonutSMP branding,
+# ranks, data, or server-side features are claimed or bundled.
+categories:
+  chat:
+    id: donut_chat
+    name: "&bChat"
+    icon: PAPER
+    priority: 1
+  notifications:
+    id: donut_notifications
+    name: "&eNotifications"
+    icon: BELL
+    priority: 2
+  pvp:
+    id: donut_pvp
+    name: "&cPvP"
+    icon: DIAMOND_SWORD
+    priority: 3
+  visuals:
+    id: donut_visuals
+    name: "&dVisuals"
+    icon: ENDER_EYE
+    priority: 4
+  privacy:
+    id: donut_privacy
+    name: "&5Privacy"
+    icon: SHIELD
+    priority: 5
+  scoreboard:
+    id: donut_scoreboard
+    name: "&aScoreboard"
+    icon: OAK_SIGN
+    priority: 6
+  general:
+    id: donut_general
+    name: "&6General"
+    icon: COMPARATOR
+    priority: 7
+
+# Overrides apply to packaged definitions before settings.yml owner overrides.
+overrides:
+  chat:
+    category: donut_chat
+    description: "&ePublic Chat"
+  private-messages:
+    category: donut_chat
+    description: "&ePrivate Messages"
+  death-messages:
+    category: donut_chat
+    description: "&eDeath Messages"
+  join-leave-messages:
+    category: donut_chat
+    description: "&eJoin and Leave Messages"
+  pvp:
+    category: donut_pvp
+    description: "&ePvP Combat"
+  fall-damage:
+    category: donut_pvp
+  player-visibility:
+    category: donut_visuals
+    description: "&ePlayer Visibility"
+  weather:
+    category: donut_visuals
+  time:
+    category: donut_visuals
+  night-vision:
+    category: donut_general
+  scoreboard:
+    category: donut_scoreboard
+    description: "&eScoreboard"
+  drop-protection:
+    category: donut_privacy
+  auto-pickup:
+    category: donut_general
+  auto-sprint:
+    category: donut_general
+  auto-respawn:
+    category: donut_general
+  hunger-loss:
+    category: donut_general
+  item-pickup:
+    category: donut_general
+  entity-collision:
+    category: donut_general
+
+# Provider-backed settings stay hidden in the Donut preset until another plugin
+# registers the named behavior through SettingsRegistry.registerBehavior(...).
+settings:
+  auction-alerts:
+    enabled: true
+    id: bettersettings_auction_alerts
+    description: "&eAuction Alerts"
+    icon: GOLD_INGOT
+    default-state: true
+    category: donut_notifications
+    behavior: auction-alerts
+    priority: 1
+  bounty-alerts:
+    enabled: true
+    id: bettersettings_bounty_alerts
+    description: "&eBounty Alerts"
+    icon: TARGET
+    default-state: true
+    category: donut_notifications
+    behavior: bounty-alerts
+    priority: 2
+  payment-policy:
+    enabled: true
+    id: bettersettings_payment_policy
+    type: choice
+    description: "&eAccept Payments From"
+    icon: EMERALD
+    default: everyone
+    options:
+      everyone: Everyone
+      friends: Friends
+      nobody: Nobody
+    category: donut_privacy
+    behavior: payment-policy
+    priority: 1
+  item-worth-lore:
+    enabled: true
+    id: bettersettings_item_worth_lore
+    description: "&eItem Worth Lore"
+    icon: NAME_TAG
+    default-state: true
+    category: donut_visuals
+    behavior: item-worth-lore
+    priority: 1
+  display-rank:
+    enabled: true
+    id: bettersettings_display_rank
+    description: "&eDisplay Rank"
+    icon: NETHER_STAR
+    default-state: true
+    category: donut_visuals
+    behavior: display-rank
+    priority: 2
+  fast-crystals:
+    enabled: true
+    id: bettersettings_fast_crystals
+    description: "&eFast Crystals"
+    icon: END_CRYSTAL
+    default-state: false
+    category: donut_pvp
+    behavior: fast-crystals
+    priority: 1
+  scoreboard-money:
+    enabled: true
+    id: bettersettings_scoreboard_money
+    description: "&eMoney Line"
+    icon: GOLD_NUGGET
+    default-state: true
+    category: donut_scoreboard
+    behavior: scoreboard-lines
+    priority: 2
+  scoreboard-kills:
+    enabled: true
+    id: bettersettings_scoreboard_kills
+    description: "&eKills Line"
+    icon: IRON_SWORD
+    default-state: true
+    category: donut_scoreboard
+    behavior: scoreboard-lines
+    priority: 3
+  scoreboard-playtime:
+    enabled: true
+    id: bettersettings_scoreboard_playtime
+    description: "&ePlaytime Line"
+    icon: CLOCK
+    default-state: true
+    category: donut_scoreboard
+    behavior: scoreboard-lines
+    priority: 4

@@ -45,10 +45,10 @@ Thank you for your interest in contributing to BetterSettings! This document pro
 
 ### Prerequisites
 
-- Java 17 or higher
+- Java 21 or higher
 - Maven 3.6+
 - Git
-- A Paper/Purpur/Folia test server (1.20.5+)
+- A Paper or compatible Paper-derived test server (1.20.5+)
 
 ### Building
 
@@ -84,8 +84,8 @@ mvn clean package
 
 ### Thread Safety
 
-- All code must be thread-safe for Folia compatibility
-- Use appropriate schedulers (player, region, global, async)
+- Respect Paper scheduler ownership and event-thread contracts
+- Use appropriate player, global, and async schedulers
 - Avoid blocking operations on game threads
 - Use concurrent collections where appropriate
 
