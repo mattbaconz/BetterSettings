@@ -42,7 +42,7 @@ final class ConfiguredValueSetting implements ValueSetting {
     @Override
     public void onValueChange(Player player, String oldValue, String newValue) {
         for (SettingAction action : definition.actions()) {
-            if (!action.when().equals("any") && !action.when().equalsIgnoreCase(newValue)) continue;
+            if (!action.matches(newValue)) continue;
             String value = replaceVariables(action.value(), player, oldValue, newValue);
             try {
                 switch (action.type()) {

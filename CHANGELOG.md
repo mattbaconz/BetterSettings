@@ -30,6 +30,11 @@
 - A malformed or invalid reload no longer replaces the working registry.
 - Auto-respawn uses the player's scheduler.
 - Shutdown waits for a bounded final player-data flush.
+- Per-player saves are ordered so an older asynchronous snapshot cannot overwrite a newer one.
+- Choice values that look like booleans remain YAML strings.
+- Persisted native state is available to join handlers and reapplied after login.
+- Fixed-layout inventories always use the required 54 slots.
+- Action conditions such as `ANY` now match case-insensitively.
 - GUI drag events are blocked in managed inventories.
 - Untouched generated defaults no longer override Donut preset categories on a clean installation.
 

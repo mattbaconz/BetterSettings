@@ -41,6 +41,7 @@ IDs must be unique. An invalid reload keeps the previous live menu instead of pu
 - New choice values are YAML strings.
 - Stored values are never deleted merely because a preset is changed or a provider is unavailable.
 - An obsolete choice value resolves to the configured default until the player selects a valid option.
+- Stateful native values such as flight, visibility, weather, and potion preferences are reapplied after login.
 
 ## Donut-inspired preset
 
@@ -53,6 +54,10 @@ preset:
 ```
 
 Reload with `/settings reload`. The preset is merged in memory; it does not rewrite owner files. Provider-backed entries remain hidden until a plugin registers their matching `SettingBehavior`.
+
+An untouched setting block copied from the packaged defaults is treated as inherited so the
+preset can organize it. If any field in a top-level block is edited, that complete owner block
+takes precedence over the preset.
 
 To return to the original layout, set `active: classic` and reload.
 

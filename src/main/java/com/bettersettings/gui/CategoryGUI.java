@@ -48,10 +48,7 @@ public class CategoryGUI implements InventoryHolder {
         Component title = com.bettersettings.utils.ColorUtils.toComponent(titleString);
         
         // Create inventory
-        int size = uiConfig.getInt("layout.size", 54);
-        if (size == 0) {
-            size = 54;
-        }
+        int size = InventoryLayout.resolveSize(uiConfig.getInt("layout.size", InventoryLayout.SIZE));
         this.inventory = Bukkit.createInventory(this, size, title);
         
         // Populate with categories

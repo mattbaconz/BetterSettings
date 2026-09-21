@@ -19,9 +19,35 @@ class PlayerValueCodecTest {
 
         assertEquals("true", values.get("toggle"));
         assertEquals("friends", values.get("privacy"));
-        YamlConfiguration saved = PlayerValueCodec.write(values);
+        YamlConfiguration saved = PlayerValueCodec.write(values, Set.of("toggle"));
         assertInstanceOf(Boolean.class, saved.get("toggle"));
         assertEquals("friends", saved.getString("privacy"));
+    }
+
+    @Test
+    void persistsBooleanLookingChoiceAsAString() {
+        YamlConfiguration saved = PlayerValueCodec.write(
+            Map.of("toggle", "true", "privacy", "true"),
+            Set.of("toggle")
+        );
+
+        assertInstanceOf(Boolean.class, saved.get("toggle"));
+        assertInstanceOf(String.class, saved.get("privacy"));
+        assertEquals("true", saved.getString("privacy"));
+    }
+
+    @Test
+    void retainsBooleanTypeForDormantLegacyTogglesButNotCurrentChoices() throws Exception {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.loadFromString("legacy-toggle: true\nstring-choice: 'true'\n");
+
+        Set<String> booleanIds = PlayerValueCodec.booleanIdsForSave(
+            PlayerValueCodec.readBooleanIds(yaml),
+            Set.of("current-toggle"),
+            Set.of("string-choice", "former-toggle-now-choice")
+        );
+
+        assertEquals(Set.of("legacy-toggle", "current-toggle"), booleanIds);
     }
 
     @Test

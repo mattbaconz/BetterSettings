@@ -14,6 +14,11 @@ From lowest to highest precedence:
 
 A duplicate addition fails validation. It is not an override mechanism.
 
+Because 1.0 installs contain a full copy of the packaged `settings.yml`, an untouched
+top-level setting block is treated as inherited. The active preset can therefore change
+that block in memory. Once any field in a block is edited, the complete owner block wins;
+this also lets an owner deliberately restore another field to its packaged value.
+
 ## Preset selection
 
 ```yaml
@@ -172,5 +177,7 @@ Player files live in `plugins/BetterSettings/playerdata/`.
 - Choice values are saved as strings.
 - An unknown stored choice displays and behaves as the current configured default.
 - Existing files are loaded in place and are not rewritten as a migration step.
+- Persisted stateful native settings are reapplied after login without firing change events or actions.
 
-On normal updates, writes are asynchronous. Plugin shutdown performs a bounded final flush and reports whether it completed.
+On normal updates, writes are asynchronous and serialized per player so an older snapshot
+cannot replace a newer one. Plugin shutdown performs a bounded final flush and reports whether it completed.

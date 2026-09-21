@@ -20,16 +20,29 @@ class ConfigurationMergerTest {
     }
 
     @Test
-    void cleanPackagedOwnerCopyDoesNotUndoPresetWhileOwnerEditsStillWin() throws Exception {
+    void anEditedOwnerBlockWinsAsAWhole() throws Exception {
         YamlConfiguration packaged = yaml("chat:\n  description: Packaged\n  icon: PAPER\n  category: communication\n");
         YamlConfiguration preset = yaml("chat:\n  description: Preset\n  category: donut_chat\n");
         YamlConfiguration owner = yaml("chat:\n  description: Packaged\n  icon: DIAMOND\n  category: communication\n");
 
         YamlConfiguration merged = ConfigurationMerger.mergePreset(packaged, preset, owner);
 
+        assertEquals("Packaged", merged.getString("chat.description"));
+        assertEquals("communication", merged.getString("chat.category"));
+        assertEquals("DIAMOND", merged.getString("chat.icon"));
+    }
+
+    @Test
+    void pristineOwnerBlocksDoNotCancelPresetValues() throws Exception {
+        YamlConfiguration packaged = yaml("chat:\n  description: Packaged\n  icon: PAPER\n  category: communication\n");
+        YamlConfiguration preset = yaml("chat:\n  description: Preset\n  category: donut_chat\n");
+        YamlConfiguration owner = yaml("chat:\n  description: Packaged\n  icon: PAPER\n  category: communication\n");
+
+        YamlConfiguration merged = ConfigurationMerger.mergePreset(packaged, preset, owner);
+
         assertEquals("Preset", merged.getString("chat.description"));
         assertEquals("donut_chat", merged.getString("chat.category"));
-        assertEquals("DIAMOND", merged.getString("chat.icon"));
+        assertEquals("PAPER", merged.getString("chat.icon"));
     }
 
     private static YamlConfiguration yaml(String input) throws Exception {

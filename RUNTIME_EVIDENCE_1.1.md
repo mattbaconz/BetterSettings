@@ -2,147 +2,98 @@
 
 Date: 2026-09-21
 
-Candidate:
+## Release candidate
 
 - Artifact: `target/BetterSettings-1.1.0.jar`
-- Size: 151,237 bytes
-- SHA-256: `a7d7daa011cd8ea0f98adb8dd12192f2505b3dba79f0818931b0d1bcc7892887`
+- Size: 162,729 bytes
+- SHA-256: `c030a2f3de07a4f044cc633618fd333cbf42bb98999a9c0512f560dbeabf213e`
 - Class-file major version: 65 (Java 21)
-- Packaged metadata: version `1.1.0`, API version `1.20.5`
+- Packaged metadata: BetterSettings `1.1.0`, Paper API `1.20.5`
 
-The final server load/validate/shutdown reruns and rendered PlugDev journey below used that exact candidate hash. The longer 1.20.5 upgrade journey was first completed on the immediately preceding candidate, before the narrow clean-install preset merge repair; that boundary is called out in its section.
+Every run identified as an exact-candidate run below used that byte-for-byte jar.
 
-## Build and unit verification
+## Clean build and automated checks
 
-Command:
+Command, using JDK 21.0.11:
 
 ```powershell
-$env:JAVA_HOME = 'C:\path\to\jdk-21'
-$env:MAVEN_OPTS = '-Xms16m -Xmx128m -XX:+UseSerialGC -XX:ReservedCodeCacheSize=24m -XX:MaxMetaspaceSize=128m -XX:-TieredCompilation'
-mvn -q -DforkCount=0 clean package
+mvn -B -DforkCount=0 clean verify
 ```
 
-Result: 17 tests, 0 failures, 0 errors, 0 skipped.
+Result: 27 tests, 0 failures, 0 errors, 0 skipped.
 
-A clean build from the release checkout produced the same 68 packaged file
-contents as the runtime-tested jar. Its archive hash differed only because 53
-ZIP entry timestamps were regenerated. The release artifact remains the exact
-runtime-tested SHA-256 recorded above.
+The clean build regenerated ZIP timestamps, producing a different archive hash. All 74 decompressed entries were compared against the runtime-tested jar and had zero content differences. The release file in `target` was then restored from the exact runtime-tested `c030...` artifact named above.
 
-Coverage includes the exact nested `Test:` report, root and multi-definition files, malformed YAML, materials, categories, actions, duplicate IDs, atomic registry replacement, programmatic registration survival, preset and owner-override precedence, an untouched generated owner file not cancelling preset overrides, provider availability, old booleans, choice persistence/restart round-trip, invalid stored choices, and value cycling.
+Coverage includes the customer's nested `Test:` definition, root and multi-definition custom files, malformed YAML, actions, materials, unknown categories, duplicate IDs, atomic reload, programmatic registration survival, preset/owner precedence, unavailable capabilities, legacy boolean data, inactive boolean retention, choice persistence, invalid stored choices, ordered asynchronous saving, fixed inventory sizing, native state restoration, and join-time visibility behavior.
 
-Running `mvn validate` with JDK 17 failed as intended with:
+Running Maven validation with JDK 17 fails with the intended Java 21 requirement. Package inspection also confirmed the typed public API and bundled Donut preset are present.
 
-```text
-BetterSettings requires JDK 21 or newer to build. Set JAVA_HOME to a JDK 21+ installation.
-```
+## Paper 1.20.5 / Java 21 compatibility floor
 
-Package inspection confirmed `ValueSetting`, `PlayerSettingValueChangeEvent`, and `presets/donutsmp.yml` are present. The Minecraft plugin inspector found Java/Paper/Bukkit markers and correctly left runtime compatibility and Folia as unknown; the live runs below provide the Paper evidence. The inspector also sees the Maven compile dependency as 1.20.6, while the packaged API declaration is 1.20.5 and the 1.20.5 runtime run below verifies the operational floor.
-
-## Paper 1.20.5 / Java 21
-
-Runtime:
+Exact-candidate runtime:
 
 - Paper `git-Paper-22` for Minecraft 1.20.5
-- Java `21.0.10`
-- Isolated data and worlds in a dedicated local Paper 1.20.5 server directory
+- Java `21.0.11`
+- Isolated server, data, and worlds under the local runtime evidence directory
 
-Final-candidate rerun:
+The fixture contained an existing `config.yml` without the new preset block, the customer's exact nested `Test:` definition, and legacy boolean player data.
 
-- The exact final SHA-256 above cold-loaded on Paper 1.20.5 / Java 21.
-- `/settings validate` reported `loaded=65, unavailable=9, skipped=1, duplicate=0, invalid=0`; the one warning was the intentional customer fixture's unknown category falling back to Uncategorized.
-- Shutdown reported `Saving all player data...` followed by `All player data saved`.
+Observed:
 
-The extended upgrade and player-protocol journey below was completed on predecessor candidate `15eea30a1acb6d1a17cc4c7cc696733c7f93f8d095b913bfb148a848f1724a40`. The final candidate differs in the tested configuration merge repair exercised by the rendered PlugDev journey below; it does not change the value/event/persistence paths used by this earlier journey.
+- BetterSettings `1.1.0` enabled successfully.
+- Registry result: `loaded=55, unavailable=0, skipped=1, duplicate=0, invalid=0, preset=classic`.
+- The unknown formatted category on `Test:` produced the expected warning and resolved to Uncategorized.
+- Existing owner configuration, custom definitions, and player data remained byte-for-byte unchanged during startup and shutdown.
+- Shutdown logged `Saving all player data...` followed by `All player data saved`.
 
-Upgrade fixture:
-
-- Existing `config.yml` intentionally omitted the new `preset` block.
-- Existing `settings.yml` was replaced with the exact customer `Test:` shape.
-- Existing player-data files were retained across stop/start.
-
-Observed results:
-
-- BetterSettings loaded as `1.1.0`.
-- The named `Test:` block became setting ID `test`.
-- Its color-formatted unknown category generated a warning and visibly fell back to Uncategorized.
-- A protocol-level player client opened Classic, entered Uncategorized, saw `Toggle private messages`, toggled it, and wrote `test: false` as a YAML boolean.
-- After another toggle and a full server restart, the same setting reopened as `Enabled`; the file contained `test: true`.
-- Appending malformed YAML made `/settings reload` report rejection and `invalid=1`. The already-running GUI still opened the prior Test setting and accepted another toggle. Restoring valid YAML made reload succeed.
-- A second live reload changed `preset.active` from `donutsmp` to `classic` while adding a duplicate built-in ID. Reload reported `duplicate=1`; a protocol client then received the existing Donut tabbed menu, proving both the registry and the parsed configuration snapshot rolled back together.
-- Shutdown reported `Saving all player data...` followed by `All player data saved`.
-
-Donut journey on the same runtime:
-
-- The 54-slot GUI exposed the seven configured tab categories when they had content.
-- Without the test provider, Auction Alerts was absent and the empty Notifications tab was absent.
-- With a test `auction-alerts` behavior registered, Notifications and Auction Alerts appeared.
-- Toggling Auction Alerts invoked the provider callback and persisted a YAML boolean.
-- A custom `CHOICE` setting displayed `Friends`, advanced to `Nobody`, moved back to `Friends`, and treated shift-reset at the default as a no-op.
-- The choice persisted as the string `qa_chat_scope: friends`.
-- A test listener observed typed events `friends -> nobody` and `nobody -> friends`.
-- A typed toggle event was observed after the `auction-alerts` provider callback.
-
-The client was headless and inspected actual server inventory packets and item components; this is functional player-protocol proof, not a rendered visual screenshot.
+An earlier 1.1 candidate completed the longer protocol journey: open the Uncategorized category, toggle the customer setting, reload malformed YAML without blanking the live registry, restore valid YAML, and restart with the boolean preserved. The exact release candidate repeats the affected parsing, rollback, persistence, and save-order paths in automated coverage, but that earlier rendered/protocol journey is not represented as byte-for-byte final-jar evidence.
 
 ## Rendered PlugDev journey / Paper 26.1.2 / Java 25
 
-Runtime:
+Exact-candidate runtime:
 
 - Paper `26.1.2-74` / API `26.1.2.build.74-stable`
 - Java `25.0.2`
-- PlugDev `1.4.1` with the project-owned Prism profile `plugdev-26.1.2`
-- Exact final candidate SHA-256 `a7d7daa011cd8ea0f98adb8dd12192f2505b3dba79f0818931b0d1bcc7892887`
+- PlugDev with the project-owned Prism instance `FO 26.1.2`
+- Candidate hash matched in both `target` and the live server plugin directory
 
-Observed results:
+Observed:
 
-- An untouched generated `settings.yml` no longer cancelled the active Donut preset's category remaps.
-- Registry validation reported `loaded=64, unavailable=9, skipped=1, duplicate=0, invalid=0` with one capture-only custom choice fixture.
-- The real client opened populated Chat, Privacy, Scoreboard, Visuals, PvP, and General tabs; the empty unavailable Notifications category stayed hidden.
-- A capture-only `CHOICE` definition showed Everyone/Friends/Nobody and cycled using real left/right inventory clicks. It is not included in the release jar or owner defaults.
-- Three PNGs and two GIFs were captured at 960x540. PlugDev inspection reported 44 frames / 2.93 seconds for the choice cycle and 75 frames / 5 seconds for the tab tour, with no freeze/black-frame diagnostics on either final GIF.
-- The selected release media is under `docs/media/1.1.0/`.
-- The server log contained no BetterSettings errors, and shutdown completed the bounded player-data flush.
+- Donut preset validation reported `loaded=63, unavailable=9, skipped=1, duplicate=0, invalid=0` before the local choice fixture and `loaded=64` afterward.
+- The real client opened the 54-slot tabbed menu. Populated Chat, PvP, Visuals, Privacy, Scoreboard, and General tabs appeared; the unavailable empty Notifications tab stayed hidden.
+- The local `Chat Scope` choice displayed `Everyone`, advanced to `Friends` with left-click, and returned to `Everyone` with right-click.
+- A second left-click saved `qa_chat_scope: friends` as a YAML string.
+- After a graceful client disconnect, bounded plugin flush, full server restart, and client reconnect, the Privacy menu still displayed `Current: Friends`.
+- Shutdown logged `Saving all player data...` followed by `All player data saved`.
+
+Exact-candidate screenshots are stored as `docs/media/1.1.0/bettersettings-final-candidate-chat.png` and `docs/media/1.1.0/bettersettings-choice-persisted.png`.
+
+The previously selected marketplace GIFs were captured from predecessor candidate `a7d7daa011cd8ea0f98adb8dd12192f2505b3dba79f0818931b0d1bcc7892887`. The final candidate only changes persistence/lifecycle and owner-merge behavior, not the rendered menu. New GIF capture attempts on the final jar stopped with PlugDev `CAPTURE_NO_FRAMES`; the exact-candidate PNGs and live client state were retained instead of mislabelling the older GIFs.
 
 ## Stable Paper 26.2 / Java 25
 
-Runtime:
+Exact-candidate runtime:
 
 - Paper `26.2-126` / API `26.2.build.126-stable`
-- Java `25.0.2`
-- Isolated data and worlds in a dedicated local Paper 26.2 server directory
+- Java `25.0.1`
+- Isolated server, data, and worlds under the local runtime evidence directory
 
-Observed results with the exact final candidate:
+Observed:
 
-- BetterSettings loaded as `1.1.0`.
-- Donut preset registry validation: `loaded=64, unavailable=8, skipped=0, duplicate=0, invalid=0` with one test capability provider installed.
-- Provider registration reduced unavailable entries from nine to eight.
-- Shutdown completed the final player-data flush.
+- BetterSettings `1.1.0` enabled successfully.
+- Donut preset result: `loaded=63, unavailable=9, skipped=1, duplicate=0, invalid=0`.
+- Shutdown completed the bounded final data flush.
 
-The installed headless Minecraft client library does not support protocol `26.2`, so no 26.2 player inventory journey is claimed. Server load, registry construction, command validation, provider registration, and shutdown were exercised.
+No Paper 26.2 inventory render is claimed; the available project-owned client is Minecraft 26.1.2. Server load, registry construction, validation, and shutdown were exercised with the exact jar.
 
-## Experimental Paper 26.3 / Java 25
+## Experimental Paper 26.3
 
-Runtime:
-
-- Paper `26.3-26-dev` / API `26.3.build.26-alpha`
-- Java `25.0.2`
-- Paper jar SHA-256: `78e29c6c80fc43c6d46db6ec86f6ce3089a647d881e6bfe262aad9276af9dfcf`
-- Isolated data and worlds in a dedicated local Paper 26.3 server directory
-
-Observed results with the exact final candidate:
-
-- BetterSettings loaded as `1.1.0`.
-- Donut preset registry validation: `loaded=63, unavailable=9, skipped=1, duplicate=0, invalid=0`.
-- Shutdown completed the final player-data flush.
-
-This is experimental smoke evidence only. It is not an advertised stable support claim.
+Paper 26.3 was smoke-tested on the preceding candidate and loaded BetterSettings successfully. It was not rerun after the final persistence/lifecycle repairs and is not advertised as stable support.
 
 ## Boundaries
 
-- Folia runtime behavior was not verified. `folia-supported: true` and public full-support claims were removed.
-- The stable 26.2 and experimental 26.3 tests did not render or click the inventory because the available headless client did not support those protocols.
-- Rendered capture used Paper 26.1.2; stable 26.2 was separately cold-loaded and validated with the exact same final jar.
-- The runtime journey covered the settings infrastructure, custom definitions, reload safety, persistence, typed events, actions, and one capability provider. It did not exhaustively exercise every historical Classic native gameplay behavior.
-- A Windows OSHI performance-counter warning appeared during Paper 26.x startup; Paper continued to `Done`, and it was not emitted by BetterSettings.
-- The QA host's inherited Windows temp path caused Java selector wakeup-socket failures before plugin loading on the final rerun. Supplying a short runtime-only `-Djdk.net.unixdomain.tmpdir` path resolved the host issue; no plugin code or packaged metadata was changed for it.
+- Folia runtime behavior was not verified, so the plugin does not advertise a Folia-compatible claim.
+- The stable 26.2 check is server-runtime proof, not a rendered player journey.
+- The exact rendered journey used Paper 26.1.2; stable 26.2 used the same exact jar in a separate isolated runtime.
+- Capability-backed Donut settings stay unavailable until a provider registers their behavior; no unsupported feature is claimed as native.
+- A Windows OSHI performance-counter warning appeared during Paper 26.x startup. Paper continued to `Done`, and BetterSettings did not emit it.

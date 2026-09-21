@@ -1,6 +1,8 @@
 package com.bettersettings.data;
 
 import com.bettersettings.BetterSettings;
+import com.bettersettings.api.SettingType;
+import com.bettersettings.api.SettingsRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -23,14 +25,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 /** Thread-safe typed player-value cache with atomic YAML persistence. */
-public final class PlayerDataManager {
+public class PlayerDataManager {
 
     private final BetterSettings plugin;
     private final File dataFolder;
     private final ConcurrentHashMap<UUID, ConcurrentHashMap<String, String>> cache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Set<String>> persistedBooleanIds = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, Long> lastAccess = new ConcurrentHashMap<>();
     private final Semaphore ioSemaphore;
     private final AtomicInteger pendingOperations = new AtomicInteger();
+    private final PlayerSaveCoordinator saveCoordinator = new PlayerSaveCoordinator();
 
     public PlayerDataManager(BetterSettings plugin) {
         this.plugin = plugin;
@@ -45,34 +49,23 @@ public final class PlayerDataManager {
 
     public void loadData(UUID uuid) {
         if (!plugin.getConfigManager().getPerformanceConfig().getBoolean("auto-save.load-on-join", true)) return;
-        dispatchIo(() -> {
-            File file = playerFile(uuid);
-            Map<String, String> data = Map.of();
-            if (file.exists()) {
-                try {
-                    data = PlayerValueCodec.read(YamlConfiguration.loadConfiguration(file));
-                } catch (RuntimeException exception) {
-                    plugin.getLogger().log(Level.WARNING, "Failed to load data for player " + uuid, exception);
-                }
-            }
-            Map<String, String> loaded = data;
-            cache.compute(uuid, (ignored, current) -> {
-                ConcurrentHashMap<String, String> merged = new ConcurrentHashMap<>(loaded);
-                if (current != null) merged.putAll(current);
-                return merged;
-            });
-            lastAccess.put(uuid, System.currentTimeMillis());
-        });
+        dispatchIo(() -> loadIntoCache(uuid));
+    }
+
+    /** Loads during Paper's asynchronous pre-login phase so join handlers see persisted values. */
+    public void loadDataNow(UUID uuid) {
+        if (!plugin.getConfigManager().getPerformanceConfig().getBoolean("auto-save.load-on-join", true)) return;
+        runIo(() -> loadIntoCache(uuid));
     }
 
     public void saveData(UUID uuid) {
         if (!plugin.getConfigManager().getPerformanceConfig().getBoolean("auto-save.save-on-quit", true)) return;
-        Map<String, String> snapshot = snapshot(uuid);
-        if (!snapshot.isEmpty()) dispatchIo(() -> write(uuid, snapshot));
+        SaveRequest request = snapshot(uuid);
+        if (request != null) dispatchIo(() -> write(request));
     }
 
     public void saveAllData() {
-        Map<UUID, Map<String, String>> snapshot = snapshotAll();
+        Map<UUID, SaveRequest> snapshot = snapshotAll();
         if (!snapshot.isEmpty()) dispatchIo(() -> saveSnapshot(snapshot));
     }
 
@@ -93,7 +86,7 @@ public final class PlayerDataManager {
             return false;
         }
 
-        Map<UUID, Map<String, String>> snapshot = snapshotAll();
+        Map<UUID, SaveRequest> snapshot = snapshotAll();
         if (snapshot.isEmpty()) return true;
         AtomicBoolean saved = new AtomicBoolean(false);
         Thread worker = Thread.ofVirtual().name("BetterSettings-final-save")
@@ -109,10 +102,10 @@ public final class PlayerDataManager {
         }
     }
 
-    private boolean saveSnapshot(Map<UUID, Map<String, String>> snapshot) {
+    private boolean saveSnapshot(Map<UUID, SaveRequest> snapshot) {
         int saved = 0;
-        for (Map.Entry<UUID, Map<String, String>> entry : snapshot.entrySet()) {
-            if (write(entry.getKey(), entry.getValue())) saved++;
+        for (SaveRequest request : snapshot.values()) {
+            if (write(request)) saved++;
         }
         if (plugin.getConfigManager().getPerformanceConfig().getBoolean("logging.debug", false)) {
             plugin.getLogger().info("Saved " + saved + " player data files");
@@ -120,11 +113,16 @@ public final class PlayerDataManager {
         return saved == snapshot.size();
     }
 
-    private boolean write(UUID uuid, Map<String, String> values) {
+    private boolean write(SaveRequest request) {
+        return saveCoordinator.execute(request.ticket(), () -> writeFile(request));
+    }
+
+    private boolean writeFile(SaveRequest request) {
+        UUID uuid = request.ticket().uuid();
         File target = playerFile(uuid);
-        File temporary = new File(dataFolder, uuid + ".tmp");
+        File temporary = new File(dataFolder, uuid + "." + request.ticket().generation() + ".tmp");
         try {
-            PlayerValueCodec.write(values).save(temporary);
+            PlayerValueCodec.write(request.values(), request.booleanIds()).save(temporary);
             try {
                 Files.move(temporary.toPath(), target.toPath(),
                     StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
@@ -171,17 +169,69 @@ public final class PlayerDataManager {
         }
     }
 
-    private Map<String, String> snapshot(UUID uuid) {
-        Map<String, String> values = cache.get(uuid);
-        return values == null ? Map.of() : Map.copyOf(values);
+    private void loadIntoCache(UUID uuid) {
+        File file = playerFile(uuid);
+        Map<String, String> data = Map.of();
+        Set<String> booleanIds = Set.of();
+        if (file.exists()) {
+            try {
+                YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+                data = PlayerValueCodec.read(yaml);
+                booleanIds = PlayerValueCodec.readBooleanIds(yaml);
+            } catch (RuntimeException exception) {
+                plugin.getLogger().log(Level.WARNING, "Failed to load data for player " + uuid, exception);
+            }
+        }
+        Map<String, String> loaded = data;
+        Set<String> loadedBooleanIds = booleanIds;
+        SettingTypes types = currentSettingTypes();
+        cache.compute(uuid, (ignored, current) -> {
+            ConcurrentHashMap<String, String> merged = new ConcurrentHashMap<>(loaded);
+            if (current != null) merged.putAll(current);
+            Set<String> knownBooleanIds = persistedBooleanIds.computeIfAbsent(
+                uuid, key -> ConcurrentHashMap.newKeySet());
+            for (String id : loadedBooleanIds) {
+                if (current == null || !current.containsKey(id)) knownBooleanIds.add(id);
+            }
+            knownBooleanIds.removeAll(types.choiceIds());
+            return merged;
+        });
+        lastAccess.put(uuid, System.currentTimeMillis());
     }
 
-    private Map<UUID, Map<String, String>> snapshotAll() {
-        Map<UUID, Map<String, String>> snapshot = new HashMap<>();
+    private SaveRequest snapshot(UUID uuid) {
+        Map<String, String> values = cache.get(uuid);
+        if (values == null || values.isEmpty()) return null;
+        SettingTypes types = currentSettingTypes();
+        return new SaveRequest(saveCoordinator.reserve(uuid), Map.copyOf(values),
+            booleanIdsForSave(uuid, types));
+    }
+
+    private Map<UUID, SaveRequest> snapshotAll() {
+        Map<UUID, SaveRequest> snapshot = new HashMap<>();
+        SettingTypes types = currentSettingTypes();
         cache.forEach((uuid, values) -> {
-            if (!values.isEmpty()) snapshot.put(uuid, Map.copyOf(values));
+            if (!values.isEmpty()) {
+                snapshot.put(uuid, new SaveRequest(
+                    saveCoordinator.reserve(uuid), Map.copyOf(values), booleanIdsForSave(uuid, types)));
+            }
         });
         return snapshot;
+    }
+
+    private SettingTypes currentSettingTypes() {
+        Set<String> toggleIds = new java.util.HashSet<>();
+        Set<String> choiceIds = new java.util.HashSet<>();
+        SettingsRegistry.getInstance().getValueSettings().forEach(setting -> {
+            if (setting.getType() == SettingType.TOGGLE) toggleIds.add(setting.getId());
+            else choiceIds.add(setting.getId());
+        });
+        return new SettingTypes(Set.copyOf(toggleIds), Set.copyOf(choiceIds));
+    }
+
+    private Set<String> booleanIdsForSave(UUID uuid, SettingTypes types) {
+        return PlayerValueCodec.booleanIdsForSave(
+            persistedBooleanIds.getOrDefault(uuid, Set.of()), types.toggleIds(), types.choiceIds());
     }
 
     private File playerFile(UUID uuid) {
@@ -198,6 +248,7 @@ public final class PlayerDataManager {
         });
         remove.forEach(uuid -> {
             cache.remove(uuid);
+            persistedBooleanIds.remove(uuid);
             lastAccess.remove(uuid);
         });
     }
@@ -209,7 +260,7 @@ public final class PlayerDataManager {
 
     /** Existing boolean mutator retained unchanged. */
     public void setSetting(UUID uuid, String settingId, boolean value) {
-        setSettingValue(uuid, settingId, Boolean.toString(value));
+        setSettingValue(uuid, settingId, Boolean.toString(value), SettingType.TOGGLE);
     }
 
     public String getSettingValue(UUID uuid, String settingId, String defaultValue) {
@@ -225,12 +276,35 @@ public final class PlayerDataManager {
         return PlayerValueCodec.resolveChoice(stored, defaultValue, allowedValues);
     }
 
+    public boolean hasSettingValue(UUID uuid, String settingId) {
+        Map<String, String> playerData = cache.get(uuid);
+        return playerData != null && playerData.containsKey(settingId);
+    }
+
     public void setSettingValue(UUID uuid, String settingId, String value) {
+        com.bettersettings.api.ValueSetting setting = SettingsRegistry.getInstance().getValueSetting(settingId);
+        setSettingValue(uuid, settingId, value, setting == null ? null : setting.getType());
+    }
+
+    private void setSettingValue(UUID uuid, String settingId, String value, SettingType type) {
         if (uuid == null || settingId == null || value == null) return;
-        cache.computeIfAbsent(uuid, ignored -> new ConcurrentHashMap<>()).put(settingId, value);
+        cache.compute(uuid, (ignored, current) -> {
+            ConcurrentHashMap<String, String> values = current == null
+                ? new ConcurrentHashMap<>() : current;
+            values.put(settingId, value);
+            Set<String> booleanIds = persistedBooleanIds.computeIfAbsent(
+                uuid, key -> ConcurrentHashMap.newKeySet());
+            if (type == SettingType.TOGGLE) booleanIds.add(settingId);
+            else if (type == SettingType.CHOICE) booleanIds.remove(settingId);
+            return values;
+        });
         lastAccess.put(uuid, System.currentTimeMillis());
     }
 
     public int getPendingOperations() { return pendingOperations.get(); }
     public int getCacheSize() { return cache.size(); }
+
+    private record SaveRequest(PlayerSaveCoordinator.Ticket ticket, Map<String, String> values,
+                               Set<String> booleanIds) {}
+    private record SettingTypes(Set<String> toggleIds, Set<String> choiceIds) {}
 }
