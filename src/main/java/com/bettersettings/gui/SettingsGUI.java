@@ -1,9 +1,11 @@
 package com.bettersettings.gui;
 
 import com.bettersettings.BetterSettings;
-import com.bettersettings.api.Setting;
+import com.bettersettings.api.SettingOption;
 import com.bettersettings.api.SettingCategory;
+import com.bettersettings.api.SettingType;
 import com.bettersettings.api.SettingsRegistry;
+import com.bettersettings.api.ValueSetting;
 import com.bettersettings.data.PlayerDataManager;
 import com.bettersettings.config.ConfigManager;
 import net.kyori.adventure.text.Component;
@@ -31,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * GUI for displaying and managing player settings with pagination support.
  * <p>
  * This class implements InventoryHolder to allow validation of click events.
- * All GUI operations are executed on the player's scheduler for Folia compatibility.
+ * GUI opens and refreshes are scheduled through the player's Paper scheduler.
  * Supports unlimited settings through multi-page navigation.
  * </p>
  */
@@ -48,7 +50,7 @@ public class SettingsGUI implements InventoryHolder {
     private final NamespacedKey categoryKey;
     private final int currentPage;
     private final int totalPages;
-    private final List<Setting> accessibleSettings;
+    private final List<ValueSetting> accessibleSettings;
     private final FileConfiguration uiConfig;
     private final String currentCategory;
 
@@ -103,7 +105,7 @@ public class SettingsGUI implements InventoryHolder {
     /**
      * Opens the settings GUI for a player.
      * <p>
-     * This method executes on the player's scheduler for Folia compatibility.
+     * This method opens through the player's Paper scheduler.
      * </p>
      * 
      * @param player The player to open the GUI for
@@ -139,10 +141,15 @@ public class SettingsGUI implements InventoryHolder {
             return;
         }
         
+        if (category == null && "donutsmp".equals(plugin.getConfigManager().getActivePreset())) {
+            category = firstDonutCategory(player);
+        }
+        final String selectedCategory = category;
+
         // Store current page and category
         playerPages.put(player, Math.max(0, page));
-        if (category != null) {
-            playerCategories.put(player, category);
+        if (selectedCategory != null) {
+            playerCategories.put(player, selectedCategory);
         } else {
             playerCategories.remove(player);
         }
@@ -150,13 +157,29 @@ public class SettingsGUI implements InventoryHolder {
         // Execute GUI creation and opening on player's scheduler
         player.getScheduler().run(plugin, scheduledTask -> {
             try {
-                SettingsGUI gui = new SettingsGUI(player, plugin, page, category);
+                SettingsGUI gui = new SettingsGUI(player, plugin, page, selectedCategory);
                 player.openInventory(gui.getInventory());
             } catch (Exception e) {
                 plugin.getLogger().severe("Error opening settings GUI for " + player.getName() + ": " + e.getMessage());
                 e.printStackTrace();
             }
         }, null);
+    }
+
+    public static String firstDonutCategory(Player player) {
+        SettingsRegistry registry = SettingsRegistry.getInstance();
+        return registry.getCategories().stream()
+            .filter(category -> category.getId().startsWith("donut_"))
+            .filter(category -> category.getPermission() == null || player.hasPermission(category.getPermission()))
+            .filter(category -> registry.getValueSettings().stream().anyMatch(setting ->
+                registry.isAvailable(setting)
+                    && setting.getCategory() != null
+                    && category.getId().equals(setting.getCategory().getId())
+                    && (setting.getPermission() == null || player.hasPermission(setting.getPermission()))))
+            .sorted(java.util.Comparator.comparingInt(SettingCategory::getPriority))
+            .map(SettingCategory::getId)
+            .findFirst()
+            .orElse("donut_general");
     }
     
     /**
@@ -205,12 +228,18 @@ public class SettingsGUI implements InventoryHolder {
      * @param category The category to filter by (null for all)
      * @return list of accessible settings, sorted deterministically
      */
-    private List<Setting> getAccessibleSettings(String category) {
-        List<Setting> accessible = new ArrayList<>();
-        
-        for (Setting setting : SettingsRegistry.getInstance().getSettings()) {
+    private List<ValueSetting> getAccessibleSettings(String category) {
+        List<ValueSetting> accessible = new ArrayList<>();
+        SettingsRegistry registry = SettingsRegistry.getInstance();
+        boolean hideUnavailable = "donutsmp".equals(plugin.getConfigManager().getActivePreset())
+            || plugin.getConfigManager().hideUnavailable();
+
+        for (ValueSetting setting : registry.getValueSettings()) {
             String permission = setting.getPermission();
             if (permission == null || player.hasPermission(permission)) {
+                if (hideUnavailable && !registry.isAvailable(setting)) {
+                    continue;
+                }
                 // Filter by category if specified
                 if (category != null) {
                     SettingCategory settingCategory = setting.getCategory();
@@ -321,19 +350,29 @@ public class SettingsGUI implements InventoryHolder {
         // Add setting items in centered positions
         int slotIndex = 0;
         for (int i = startIndex; i < endIndex && slotIndex < settingSlots.length; i++) {
-            Setting setting = accessibleSettings.get(i);
-            
-            // Get current setting state
-            boolean currentState = dataManager.getSetting(
-                player.getUniqueId(), 
-                setting.getId(), 
-                setting.getDefaultState()
-            );
-            
+            ValueSetting setting = accessibleSettings.get(i);
+
+            String currentValue = dataManager.getSettingValue(
+                player.getUniqueId(), setting.getId(), setting.getDefaultValue());
+            if (setting.getType() == SettingType.CHOICE) {
+                boolean knownChoice = false;
+                for (SettingOption option : setting.getOptions()) {
+                    if (option.value().equals(currentValue)) {
+                        knownChoice = true;
+                        break;
+                    }
+                }
+                if (!knownChoice) currentValue = setting.getDefaultValue();
+            }
+
             // Create and place setting item
-            ItemStack item = createSettingItem(setting, currentState);
+            ItemStack item = createSettingItem(setting, currentValue);
             inventory.setItem(settingSlots[slotIndex], item);
             slotIndex++;
+        }
+
+        if ("donutsmp".equals(plugin.getConfigManager().getActivePreset())) {
+            addDonutTabs();
         }
         
         // Add navigation buttons if needed
@@ -372,6 +411,41 @@ public class SettingsGUI implements InventoryHolder {
             inventory.setItem(row * 9 + 8, border.clone());
         }
     }
+
+    /** Adds the seven Donut-inspired category tabs and omits categories with no usable settings. */
+    private void addDonutTabs() {
+        SettingsRegistry registry = SettingsRegistry.getInstance();
+        List<SettingCategory> categories = registry.getCategories().stream()
+            .filter(category -> category.getId().startsWith("donut_"))
+            .filter(category -> category.getPermission() == null || player.hasPermission(category.getPermission()))
+            .filter(category -> registry.getValueSettings().stream().anyMatch(setting ->
+                registry.isAvailable(setting)
+                    && setting.getCategory() != null
+                    && category.getId().equals(setting.getCategory().getId())
+                    && (setting.getPermission() == null || player.hasPermission(setting.getPermission()))))
+            .sorted(java.util.Comparator.comparingInt(SettingCategory::getPriority))
+            .toList();
+
+        int[] slots = {1, 2, 3, 4, 5, 6, 7};
+        for (int index = 0; index < Math.min(slots.length, categories.size()); index++) {
+            SettingCategory category = categories.get(index);
+            ItemStack item = new ItemStack(category.getIcon() == null ? Material.CHEST : category.getIcon());
+            ItemMeta meta = item.getItemMeta();
+            if (meta == null) continue;
+            boolean active = category.getId().equals(currentCategory);
+            meta.displayName(com.bettersettings.utils.ColorUtils.toComponent(
+                (active ? "&f&l" : "&7") + category.getName()));
+            meta.lore(List.of(com.bettersettings.utils.ColorUtils.toComponent(
+                active ? "&aCurrent tab" : "&eClick to open")));
+            if (active) {
+                meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+            }
+            meta.getPersistentDataContainer().set(actionKey, PersistentDataType.STRING, "tab:" + category.getId());
+            item.setItemMeta(meta);
+            inventory.setItem(slots[index], item);
+        }
+    }
     
 
     
@@ -404,8 +478,9 @@ public class SettingsGUI implements InventoryHolder {
         ItemStack infoButton = new ItemStack(Material.BOOK);
         ItemMeta meta = infoButton.getItemMeta();
         if (meta != null) {
-            String categoryName = currentCategory != null ? 
-                SettingsRegistry.getInstance().getCategory(currentCategory).getName() : "All Settings";
+            SettingCategory activeCategory = currentCategory == null ? null
+                : SettingsRegistry.getInstance().getCategory(currentCategory);
+            String categoryName = activeCategory != null ? activeCategory.getName() : "All Settings";
             
             meta.displayName(com.bettersettings.utils.ColorUtils.toComponent("&6&l" + categoryName));
             
@@ -482,13 +557,13 @@ public class SettingsGUI implements InventoryHolder {
      * @param enabled Whether the setting is currently enabled
      * @return The created ItemStack
      */
-    private ItemStack createSettingItem(Setting setting, boolean enabled) {
+    private ItemStack createSettingItem(ValueSetting setting, String value) {
         if (setting == null) {
             return new ItemStack(Material.BARRIER);
         }
-        
+
         // Get base icon from setting
-        ItemStack item = setting.getIcon(player, enabled);
+        ItemStack item = setting.getIcon(player, value);
         if (item == null) {
             // Fallback to a default item if setting returns null
             item = new ItemStack(Material.PAPER);
@@ -513,20 +588,32 @@ public class SettingsGUI implements InventoryHolder {
         // Create lore
         List<Component> lore = new ArrayList<>();
         
-        // Add enabled/disabled status
-        String statusText;
-        if (enabled) {
-            statusText = uiConfig.getString("visual.setting-item.lore.enabled-text", "&a✓ Enabled");
-            lore.add(com.bettersettings.utils.ColorUtils.toComponent(statusText));
-            
-            // Add enchantment glow if enabled
-            if (uiConfig.getBoolean("visual.setting-item.glow-when-enabled", true)) {
-                meta.addEnchant(Enchantment.UNBREAKING, 1, true);
-                meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        if (setting.getType() == SettingType.TOGGLE) {
+            boolean enabled = Boolean.parseBoolean(value);
+            String statusText;
+            if (enabled) {
+                statusText = uiConfig.getString("visual.setting-item.lore.enabled-text", "&a✓ Enabled");
+                lore.add(com.bettersettings.utils.ColorUtils.toComponent(statusText));
+
+                if (uiConfig.getBoolean("visual.setting-item.glow-when-enabled", true)) {
+                    meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+                    meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+                }
+            } else {
+                statusText = uiConfig.getString("visual.setting-item.lore.disabled-text", "&c✗ Disabled");
+                lore.add(com.bettersettings.utils.ColorUtils.toComponent(statusText));
             }
         } else {
-            statusText = uiConfig.getString("visual.setting-item.lore.disabled-text", "&c✗ Disabled");
-            lore.add(com.bettersettings.utils.ColorUtils.toComponent(statusText));
+            String label = setting.getOptions().stream()
+                .filter(option -> option.value().equals(value))
+                .map(SettingOption::displayName)
+                .findFirst()
+                .orElse(value);
+            lore.add(com.bettersettings.utils.ColorUtils.toComponent("&aCurrent: &f" + label));
+        }
+
+        if (!SettingsRegistry.getInstance().isAvailable(setting)) {
+            lore.add(com.bettersettings.utils.ColorUtils.toComponent("&cProvider unavailable"));
         }
         
         lore.add(Component.empty());
@@ -554,8 +641,13 @@ public class SettingsGUI implements InventoryHolder {
         // Add click hint if enabled
         if (uiConfig.getBoolean("visual.setting-item.show-click-hint", true)) {
             lore.add(Component.empty());
-            String clickHint = uiConfig.getString("visual.setting-item.lore.click-hint", "&7Click to toggle");
-            lore.add(com.bettersettings.utils.ColorUtils.toComponent(clickHint));
+            if (setting.getType() == SettingType.CHOICE) {
+                lore.add(com.bettersettings.utils.ColorUtils.toComponent("&7Left click: next option"));
+                lore.add(com.bettersettings.utils.ColorUtils.toComponent("&7Right click: previous option"));
+            } else {
+                lore.add(com.bettersettings.utils.ColorUtils.toComponent("&7Click to toggle"));
+            }
+            lore.add(com.bettersettings.utils.ColorUtils.toComponent("&7Shift-click: restore default"));
         }
         
         meta.lore(lore);

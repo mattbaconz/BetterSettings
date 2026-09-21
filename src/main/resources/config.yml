@@ -2,7 +2,7 @@
 # BetterSettings - Main Configuration
 # ============================================
 # A lightweight, lag-free player settings management system
-# for Paper/Purpur/Folia servers (1.20.5+)
+# for Paper and compatible Paper-derived servers (1.20.5+)
 # ============================================
 #
 # Configuration Files:
@@ -13,6 +13,12 @@
 #   settings/*.yml   - Custom setting definitions
 #
 # ============================================
+
+# Preset selection. Presets are merged in memory and never rewrite this file,
+# settings.yml, or existing player data.
+preset:
+  active: classic # classic or donutsmp
+  hide-unavailable: false
 
 # GUI Settings
 gui:

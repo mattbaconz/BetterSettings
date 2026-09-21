@@ -33,10 +33,7 @@ import org.bukkit.inventory.ItemStack;
  * Third-party plugins can implement this interface to create custom settings that
  * integrate seamlessly with the BetterSettings system.
  * </p>
- * <p>
- * Implementations must be thread-safe as methods may be called from different threads
- * in Folia's regionized environment.
- * </p>
+ * Implementations should avoid blocking the server thread.
  *
  * @since 1.0.0
  */
@@ -148,17 +145,11 @@ public interface Setting {
     /**
      * Called when a player toggles this setting.
      * <p>
-     * This method is executed on the player's region scheduler in Folia, making it
-     * safe to perform player-specific operations like modifying their scoreboard,
-     * hiding/showing other players, or sending messages.
+     * This method is invoked from the player's scheduled GUI interaction.
      * </p>
      * <p>
-     * The setting state has already been updated in the cache before this method
-     * is called, so you can focus on applying the effects of the toggle.
-     * </p>
-     * <p>
-     * If this method returns false, the toggle will be cancelled and the setting
-     * state will be reverted to its previous value.
+     * This legacy callback runs before the value commit. Returning false cancels
+     * the change and leaves the stored setting value unchanged.
      * </p>
      *
      * @param player the player who toggled the setting

@@ -8,20 +8,21 @@ import com.bettersettings.listeners.CoreListener;
 import com.bettersettings.listeners.GUIListener;
 import com.bettersettings.listeners.PlayerConnectionListener;
 import com.bettersettings.settings.CustomSettingLoader;
+import com.bettersettings.settings.ValidationIssue;
+import com.bettersettings.settings.ValidationReport;
+import com.bettersettings.api.SettingsRegistry;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.List;
 
 /**
  * Main plugin class for BetterSettings.
  * <p>
  * BetterSettings is a centralized, API-first player settings management system
- * designed for Paper/Purpur/Folia servers (1.20.5+). It provides a thread-safe
+ * designed for Paper and compatible Paper-derived servers (1.20.5+). It provides a thread-safe
  * settings registry and GUI for players to manage their preferences.
- * </p>
- * <p>
- * This plugin is fully compatible with Folia's regionized threading model and
- * uses appropriate schedulers for all operations.
  * </p>
  *
  * @since 1.0.0
@@ -63,21 +64,14 @@ public class BetterSettings extends JavaPlugin {
             getLogger().info("PlayerDataManager initialized");
         }
         
-        // Register built-in categories first
-        com.bettersettings.core.BuiltinCategories.registerAll(this);
-        if (configManager.getPerformanceConfig().getBoolean("logging.registrations", true)) {
-            getLogger().info("Built-in categories registered");
-        }
-        
-        // Register built-in settings
-        BuiltinSettings.registerAll(this);
-        if (configManager.getPerformanceConfig().getBoolean("logging.registrations", true)) {
-            getLogger().info("Built-in settings registered");
-        }
-        
-        // Load custom settings
         customSettingLoader = new CustomSettingLoader(this);
-        customSettingLoader.loadCustomSettings(configManager.getCustomSettingConfigs());
+        ValidationReport initialReport = buildAndApplyRegistry();
+        if (!initialReport.applied()) {
+            getLogger().severe("Initial settings configuration is invalid; BetterSettings cannot start safely.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+        configManager.acceptReload();
         
         // Register commands
         var settingsCommand = getCommand("settings");
@@ -125,8 +119,8 @@ public class BetterSettings extends JavaPlugin {
         // Save all cached player data
         if (dataManager != null) {
             getLogger().info("Saving all player data...");
-            dataManager.saveAllData();
-            getLogger().info("All player data saved");
+            boolean flushed = dataManager.saveAllDataAndWait(10_000L);
+            getLogger().info(flushed ? "All player data saved" : "Player data flush timed out; check earlier errors");
         }
         
         getLogger().info("BetterSettings disabled");
@@ -183,9 +177,79 @@ public class BetterSettings extends JavaPlugin {
      * Reloads the plugin configuration and restarts scheduled tasks.
      */
     public void reload() {
-        configManager.reloadAll();
-        cancelScheduledTasks();
-        startScheduledTasks();
+        ValidationReport report = reloadSettings();
+        if (!report.applied()) {
+            throw new IllegalStateException("Reload rejected; the previous settings registry remains active");
+        }
+    }
+
+    public ValidationReport reloadSettings() {
+        if (!configManager.reloadAll()) {
+            ValidationReport report = new ValidationReport(
+                configManager.getActivePreset(), SettingsRegistry.getInstance().getSettings().size(),
+                SettingsRegistry.getInstance().getValidationReport().unavailableCount(), 0, 0, 1, false,
+                List.of(new ValidationIssue(
+                    ValidationIssue.Severity.ERROR, "invalid-yaml", "configuration", "",
+                    configManager.getLastLoadError() == null ? "Configuration could not be parsed." : configManager.getLastLoadError()
+                ))
+            );
+            SettingsRegistry.getInstance().cancelManagedRegistration(report);
+            return report;
+        }
+
+        ValidationReport report = buildAndApplyRegistry();
+        if (report.applied()) {
+            configManager.acceptReload();
+            cancelScheduledTasks();
+            startScheduledTasks();
+        } else {
+            configManager.rollbackReload();
+        }
+        return SettingsRegistry.getInstance().getValidationReport();
+    }
+
+    private ValidationReport buildAndApplyRegistry() {
+        SettingsRegistry registry = SettingsRegistry.getInstance();
+        registry.beginManagedRegistration();
+        try {
+            com.bettersettings.core.BuiltinCategories.registerAll(this);
+            BuiltinSettings.registerAll(this);
+            ValidationReport report = customSettingLoader.loadManagedSettings();
+            if (!report.valid()) {
+                registry.cancelManagedRegistration(report);
+                logValidation(report);
+                return report;
+            }
+            boolean applied = registry.commitManagedRegistration(report);
+            ValidationReport finalReport = registry.getValidationReport();
+            logValidation(finalReport);
+            return applied ? finalReport : report.withApplied(false);
+        } catch (RuntimeException exception) {
+            ValidationReport report = new ValidationReport(
+                configManager.getActivePreset(), registry.getSettings().size(), 0, 0, 0, 1, false,
+                List.of(new ValidationIssue(
+                    ValidationIssue.Severity.ERROR, "registry-build", "configuration", "", exception.getMessage()
+                ))
+            );
+            registry.cancelManagedRegistration(report);
+            getLogger().log(java.util.logging.Level.SEVERE, "Settings registry build failed; live snapshot was kept", exception);
+            return report;
+        }
+    }
+
+    private void logValidation(ValidationReport report) {
+        getLogger().info("Settings registry: loaded=" + report.loadedCount()
+            + ", unavailable=" + report.unavailableCount()
+            + ", skipped=" + report.skippedCount()
+            + ", duplicate=" + report.duplicateCount()
+            + ", invalid=" + report.invalidCount()
+            + ", preset=" + report.activePreset());
+        report.issues().forEach(issue -> {
+            String message = issue.source() + (issue.path().isBlank() ? "" : " [" + issue.path() + "]")
+                + ": " + issue.message();
+            if (issue.severity() == ValidationIssue.Severity.ERROR) getLogger().severe(message);
+            else getLogger().warning(message);
+        });
     }
     
     /**

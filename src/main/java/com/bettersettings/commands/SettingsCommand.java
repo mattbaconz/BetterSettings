@@ -1,9 +1,12 @@
 package com.bettersettings.commands;
 
 import com.bettersettings.BetterSettings;
+import com.bettersettings.api.SettingsRegistry;
+import com.bettersettings.gui.CategoryGUI;
 import com.bettersettings.gui.SettingsGUI;
+import com.bettersettings.settings.ValidationIssue;
+import com.bettersettings.settings.ValidationReport;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -12,154 +15,121 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
-/**
- * Command executor for the /settings command.
- * <p>
- * This command opens the settings GUI for players and provides admin commands.
- * Supports: /settings [reload|info]
- * </p>
- */
-public class SettingsCommand implements CommandExecutor, TabCompleter {
-
+/** Opens settings and reports honest registry validation/reload outcomes. */
+public final class SettingsCommand implements CommandExecutor, TabCompleter {
     private final BetterSettings plugin;
 
-    /**
-     * Creates a new SettingsCommand instance.
-     * 
-     * @param plugin The plugin instance
-     */
     public SettingsCommand(BetterSettings plugin) {
         this.plugin = plugin;
     }
 
-    /**
-     * Executes the /settings command.
-     *
-     * @param sender  The command sender
-     * @param command The command being executed
-     * @param label   The command label (alias used)
-     * @param args    Command arguments
-     * @return true to indicate the command was handled
-     */
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        // Handle subcommands
         if (args.length > 0) {
-            String subcommand = args[0].toLowerCase();
-            
-            switch (subcommand) {
-                case "reload":
-                    return handleReload(sender);
-                case "info":
-                    return handleInfo(sender);
-                default:
-                    sender.sendMessage(getMessage("&cUnknown subcommand. Use /settings [reload|info]"));
-                    return true;
+            return switch (args[0].toLowerCase(Locale.ROOT)) {
+                case "reload" -> reload(sender);
+                case "info" -> info(sender);
+                case "validate" -> validate(sender);
+                default -> {
+                    sender.sendMessage(message("&cUnknown subcommand. Use /settings [reload|info|validate]"));
+                    yield true;
+                }
+            };
+        }
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(message("&cThis command can only be used by players."));
+            return true;
+        }
+        if ("donutsmp".equals(plugin.getConfigManager().getActivePreset())) {
+            SettingsGUI.open(player, 0, SettingsGUI.firstDonutCategory(player));
+        } else {
+            var ui = plugin.getConfigManager().getUIConfig();
+            if (ui.getBoolean("layout.categories-enabled", true)
+                && "menu".equals(ui.getString("layout.category-mode", "menu"))) {
+                CategoryGUI.open(player);
+            } else {
+                SettingsGUI.open(player);
             }
         }
-        
-        // No args - open GUI
-        if (!(sender instanceof Player)) {
-            sender.sendMessage(getMessage("&cThis command can only be used by players."));
-            sender.sendMessage(getMessage("&7Use /settings reload or /settings info from console."));
-            return true;
-        }
-        
-        Player player = (Player) sender;
-        
-        // Check if categories are enabled and category mode is "menu"
-        var uiConfig = plugin.getConfigManager().getUIConfig();
-        boolean categoriesEnabled = uiConfig.getBoolean("layout.categories-enabled", true);
-        String categoryMode = uiConfig.getString("layout.category-mode", "menu");
-        
-        if (categoriesEnabled && "menu".equals(categoryMode)) {
-            // Open category selection menu
-            com.bettersettings.gui.CategoryGUI.open(player);
+        return true;
+    }
+
+    private boolean reload(CommandSender sender) {
+        if (!sender.hasPermission("bettersettings.reload")) return denied(sender);
+        ValidationReport report = plugin.reloadSettings();
+        if (report.applied()) {
+            sender.sendMessage(message("&aBetterSettings reloaded. " + counts(report)));
         } else {
-            // Open settings GUI directly
-            SettingsGUI.open(player);
+            sender.sendMessage(message("&cReload rejected; the previous menu remains live. " + counts(report)));
+            sender.sendMessage(message("&7Run /settings validate for details."));
         }
-        
         return true;
     }
 
-    /**
-     * Handles the reload subcommand.
-     */
-    private boolean handleReload(CommandSender sender) {
-        if (!sender.hasPermission("bettersettings.reload")) {
-            String noPermMsg = plugin.getConfig().getString("messages.no-permission");
-            sender.sendMessage(getMessage(noPermMsg != null ? noPermMsg : "&cYou don't have permission to use this."));
+    private boolean info(CommandSender sender) {
+        if (!sender.hasPermission("bettersettings.info")) return denied(sender);
+        SettingsRegistry registry = SettingsRegistry.getInstance();
+        ValidationReport report = registry.getValidationReport();
+        sender.sendMessage(message("&6&l=== BetterSettings Info ==="));
+        sender.sendMessage(message("&eVersion: &7" + plugin.getDescription().getVersion()));
+        sender.sendMessage(message("&ePreset: &7" + report.activePreset()));
+        sender.sendMessage(message("&eRegistry: &7" + counts(report)));
+        sender.sendMessage(message("&eTotal API settings: &7" + registry.getSettings().size()));
+        sender.sendMessage(message("&eCached players: &7" + plugin.getDataManager().getCacheSize()));
+        sender.sendMessage(message("&ePending I/O: &7" + plugin.getDataManager().getPendingOperations()));
+        return true;
+    }
+
+    private boolean validate(CommandSender sender) {
+        if (!sender.hasPermission("bettersettings.validate")) return denied(sender);
+        ValidationReport report = SettingsRegistry.getInstance().getValidationReport();
+        sender.sendMessage(message((report.valid() ? "&a" : "&c") + "BetterSettings validation: " + counts(report)));
+        if (report.issues().isEmpty()) {
+            sender.sendMessage(message("&7No validation issues."));
             return true;
         }
-        
-        try {
-            plugin.reload();
-            String successMsg = plugin.getConfig().getString("messages.reload-success");
-            sender.sendMessage(getMessage(successMsg != null ? successMsg : "&aBetterSettings configuration reloaded!"));
-        } catch (Exception e) {
-            String failMsg = plugin.getConfig().getString("messages.reload-failed");
-            sender.sendMessage(getMessage(failMsg != null ? failMsg : "&cFailed to reload configuration. Check console for errors."));
-            plugin.getLogger().severe("Error reloading configuration: " + e.getMessage());
-            e.printStackTrace();
+        int shown = 0;
+        for (ValidationIssue issue : report.issues()) {
+            if (shown++ >= 12) {
+                sender.sendMessage(message("&7...and " + (report.issues().size() - 12) + " more; see the server log."));
+                break;
+            }
+            String color = issue.severity() == ValidationIssue.Severity.ERROR ? "&c" : "&e";
+            sender.sendMessage(message(color + issue.code() + " &7" + issue.source()
+                + (issue.path().isBlank() ? "" : " [" + issue.path() + "]") + ": " + issue.message()));
         }
-        
         return true;
     }
 
-    /**
-     * Handles the info subcommand.
-     */
-    private boolean handleInfo(CommandSender sender) {
-        if (!sender.hasPermission("bettersettings.info")) {
-            String noPermMsg = plugin.getConfig().getString("messages.no-permission");
-            sender.sendMessage(getMessage(noPermMsg != null ? noPermMsg : "&cYou don't have permission to use this."));
-            return true;
-        }
-        
-        sender.sendMessage(getMessage("&6&l=== BetterSettings Info ==="));
-        sender.sendMessage(getMessage("&eVersion: &7" + plugin.getDescription().getVersion()));
-        sender.sendMessage(getMessage("&eRegistered Settings: &7" + 
-            com.bettersettings.api.SettingsRegistry.getInstance().getSettings().size()));
-        sender.sendMessage(getMessage("&eCached Players: &7" + plugin.getDataManager().getCacheSize()));
-        sender.sendMessage(getMessage("&ePending I/O Operations: &7" + 
-            plugin.getDataManager().getPendingOperations()));
-        
-        var perfConfig = plugin.getConfigManager().getPerformanceConfig();
-        sender.sendMessage(getMessage("&eAsync I/O: &7" + perfConfig.getBoolean("io.async", true)));
-        sender.sendMessage(getMessage("&eBatch Saves: &7" + perfConfig.getBoolean("io.batch-saves", true)));
-        
+    private boolean denied(CommandSender sender) {
+        sender.sendMessage(message(plugin.getConfigManager().getMessagesConfig()
+            .getString("no-permission", "&cYou don't have permission to use this.")));
         return true;
     }
 
-    /**
-     * Provides tab completion for the command.
-     */
+    private static String counts(ValidationReport report) {
+        return "loaded=" + report.loadedCount()
+            + ", unavailable=" + report.unavailableCount()
+            + ", skipped=" + report.skippedCount()
+            + ", duplicate=" + report.duplicateCount()
+            + ", invalid=" + report.invalidCount();
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        List<String> completions = new ArrayList<>();
-        
-        if (args.length == 1) {
-            if (sender.hasPermission("bettersettings.reload")) {
-                completions.add("reload");
-            }
-            if (sender.hasPermission("bettersettings.info")) {
-                completions.add("info");
-            }
-            
-            // Filter based on what user typed
-            String input = args[0].toLowerCase();
-            completions.removeIf(s -> !s.toLowerCase().startsWith(input));
-        }
-        
-        return completions;
+        if (args.length != 1) return List.of();
+        List<String> values = new ArrayList<>();
+        if (sender.hasPermission("bettersettings.reload")) values.add("reload");
+        if (sender.hasPermission("bettersettings.info")) values.add("info");
+        if (sender.hasPermission("bettersettings.validate")) values.add("validate");
+        String input = args[0].toLowerCase(Locale.ROOT);
+        values.removeIf(value -> !value.startsWith(input));
+        return values;
     }
 
-    /**
-     * Converts a legacy color code string to a Component.
-     */
-    private Component getMessage(String message) {
-        return com.bettersettings.utils.ColorUtils.toComponent(message);
+    private static Component message(String value) {
+        return com.bettersettings.utils.ColorUtils.toComponent(value);
     }
 }

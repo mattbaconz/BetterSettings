@@ -1,15 +1,14 @@
 name: BetterSettings
-version: 1.0.0
+version: ${project.version}
 main: com.bettersettings.BetterSettings
-api-version: '1.20'
-folia-supported: true
+api-version: '1.20.5'
 author: mattbaconz
 description: A centralized, API-first player settings management system
 
 commands:
   settings:
     description: Open the player settings GUI or manage plugin
-    usage: /settings [reload|info]
+    usage: /settings [reload|info|validate]
     aliases: [setting, prefs, preferences]
     permission: bettersettings.use
 
@@ -23,6 +22,9 @@ permissions:
   bettersettings.info:
     description: Allows viewing plugin information
     default: op
+  bettersettings.validate:
+    description: Allows viewing BetterSettings validation results
+    default: op
   bettersettings.*:
     description: Grants all BetterSettings permissions
     default: op
@@ -30,3 +32,4 @@ permissions:
       bettersettings.use: true
       bettersettings.reload: true
       bettersettings.info: true
+      bettersettings.validate: true

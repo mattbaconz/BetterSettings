@@ -12,8 +12,7 @@ import org.jetbrains.annotations.NotNull;
  * Use {@link PlayerToggleSettingEvent} to prevent the toggle.
  * </p>
  * <p>
- * This event is called synchronously on the player's region scheduler,
- * making it safe to perform player-specific operations.
+ * This event is called synchronously from the player's scheduled GUI interaction.
  * </p>
  *
  * @since 1.0.0

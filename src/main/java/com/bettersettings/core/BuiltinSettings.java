@@ -19,7 +19,7 @@ public class BuiltinSettings {
 
     public static void registerAll(BetterSettings plugin) {
         SettingsRegistry registry = SettingsRegistry.getInstance();
-        FileConfiguration config = plugin.getConfigManager().getSettingsConfig();
+        FileConfiguration config = plugin.getConfigManager().getEffectiveSettingsConfig();
         
         // Communication settings
         if (config.getBoolean("chat.enabled", true)) {
@@ -203,7 +203,7 @@ public class BuiltinSettings {
     }
     
     private static Setting createSetting(BetterSettings plugin, String configKey, String id, ToggleHandler handler) {
-        FileConfiguration config = plugin.getConfigManager().getSettingsConfig();
+        FileConfiguration config = plugin.getConfigManager().getEffectiveSettingsConfig();
         
         return new Setting() {
             @Override
@@ -220,7 +220,7 @@ public class BuiltinSettings {
             public ItemStack getIcon(Player player, boolean state) {
                 try {
                     String materialName = config.getString(configKey + ".icon", "PAPER");
-                    return new ItemStack(Material.valueOf(materialName));
+                    return new ItemStack(Material.valueOf(materialName.toUpperCase(java.util.Locale.ROOT)));
                 } catch (IllegalArgumentException e) {
                     return new ItemStack(Material.PAPER);
                 }
@@ -241,9 +241,12 @@ public class BuiltinSettings {
             public com.bettersettings.api.SettingCategory getCategory() {
                 String categoryId = config.getString(configKey + ".category", null);
                 if (categoryId != null) {
-                    return SettingsRegistry.getInstance().getCategory(categoryId);
+                    com.bettersettings.api.SettingCategory category = SettingsRegistry.getInstance().getCategory(categoryId);
+                    if (category != null) {
+                        return category;
+                    }
                 }
-                return null;
+                return SettingsRegistry.getInstance().getCategory("uncategorized");
             }
             
             @Override

@@ -1,100 +1,56 @@
 package com.bettersettings.config;
 
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.logging.Level;
 
-/**
- * Manages multiple configuration files for better organization.
- * Supports main config, settings config, messages config, and custom setting configs.
- */
-public class ConfigManager {
-    
+/** Loads every owner file strictly and swaps the complete configuration set only on success. */
+public final class ConfigManager {
+
     private final Plugin plugin;
-    private final Map<String, FileConfiguration> configs;
-    private final Map<String, File> configFiles;
-    
+    private volatile Map<String, FileConfiguration> configs = Map.of();
+    private volatile Map<String, File> configFiles = Map.of();
+    private volatile FileConfiguration packagedSettings;
+    private volatile FileConfiguration donutPreset;
+    private volatile FileConfiguration effectiveSettings;
+    private volatile String lastLoadError;
+    private ConfigState previousState;
+
     public ConfigManager(Plugin plugin) {
         this.plugin = plugin;
-        this.configs = new HashMap<>();
-        this.configFiles = new HashMap<>();
-        
-        loadConfigs();
+        ensureFiles();
+        if (!reloadAll()) {
+            throw new IllegalStateException("Unable to load BetterSettings configuration: " + lastLoadError);
+        }
     }
-    
-    /**
-     * Loads all configuration files.
-     */
-    private void loadConfigs() {
-        // Main config
+
+    private void ensureFiles() {
         plugin.saveDefaultConfig();
-        configs.put("config", plugin.getConfig());
-        
-        // Settings config
-        loadConfig("settings");
-        
-        // Messages config
-        loadConfig("messages");
-        
-        // Performance config
-        loadConfig("performance");
-        
-        // UI config
-        loadConfig("ui");
-        
-        // Load custom settings from settings folder
-        loadCustomSettings();
-    }
-    
-    /**
-     * Loads a specific config file.
-     */
-    private void loadConfig(String name) {
-        File file = new File(plugin.getDataFolder(), name + ".yml");
-        
-        if (!file.exists()) {
-            plugin.saveResource(name + ".yml", false);
+        for (String name : new String[]{ "settings", "messages", "performance", "ui" }) {
+            File file = new File(plugin.getDataFolder(), name + ".yml");
+            if (!file.exists()) plugin.saveResource(name + ".yml", false);
         }
-        
-        FileConfiguration config = YamlConfiguration.loadConfiguration(file);
-        configs.put(name, config);
-        configFiles.put(name, file);
-    }
-    
-    /**
-     * Loads custom setting configurations from the settings folder.
-     */
-    private void loadCustomSettings() {
         File settingsFolder = new File(plugin.getDataFolder(), "settings");
-        if (!settingsFolder.exists()) {
-            settingsFolder.mkdirs();
-            createExampleCustomSetting();
-        }
-        
-        File[] files = settingsFolder.listFiles((dir, name) -> name.endsWith(".yml"));
-        if (files != null) {
-            for (File file : files) {
-                String name = file.getName().replace(".yml", "");
-                FileConfiguration config = YamlConfiguration.loadConfiguration(file);
-                configs.put("custom_" + name, config);
-                configFiles.put("custom_" + name, file);
-            }
+        if (!settingsFolder.exists() && settingsFolder.mkdirs()) {
+            createExampleCustomSetting(settingsFolder);
         }
     }
-    
-    /**
-     * Creates an example custom setting file.
-     */
-    private void createExampleCustomSetting() {
-        File exampleFile = new File(plugin.getDataFolder(), "settings/example.yml");
-        FileConfiguration example = new YamlConfiguration();
-        
+
+    private void createExampleCustomSetting(File settingsFolder) {
+        File exampleFile = new File(settingsFolder, "example.yml");
+        if (exampleFile.exists()) return;
+        YamlConfiguration example = new YamlConfiguration();
         example.set("enabled", false);
         example.set("id", "myplugin_example");
         example.set("description", "&aExample Custom Setting");
@@ -103,109 +59,159 @@ public class ConfigManager {
         example.set("permission", null);
         example.set("category", "gameplay");
         example.set("priority", 50);
-        
-        example.setComments("enabled", java.util.Arrays.asList(
-            "Example custom setting configuration",
-            "Copy this file to create your own custom settings",
-            "Set enabled to true to activate this setting"
-        ));
-        
-        example.setComments("category", java.util.Arrays.asList(
-            "Category ID (see ui.yml for available categories)",
-            "Options: communication, display, gameplay, protection, or custom category ID",
-            "Leave as null for uncategorized"
-        ));
-        
-        example.setComments("priority", java.util.Arrays.asList(
-            "Sort priority within category (lower = first)",
-            "Default: 100"
-        ));
-        
         try {
             example.save(exampleFile);
-        } catch (IOException e) {
-            plugin.getLogger().log(Level.WARNING, "Failed to create example setting", e);
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.WARNING, "Failed to create settings/example.yml", exception);
         }
     }
-    
+
     /**
-     * Gets a configuration by name.
+     * Strictly parses all files into a candidate and publishes them together.
+     * A malformed file leaves every previously loaded configuration object live.
      */
-    public FileConfiguration getConfig(String name) {
-        return configs.getOrDefault(name, plugin.getConfig());
-    }
-    
-    /**
-     * Gets the main config.
-     */
-    public FileConfiguration getMainConfig() {
-        return plugin.getConfig();
-    }
-    
-    /**
-     * Gets the settings config.
-     */
-    public FileConfiguration getSettingsConfig() {
-        return configs.get("settings");
-    }
-    
-    /**
-     * Gets the messages config.
-     */
-    public FileConfiguration getMessagesConfig() {
-        return configs.get("messages");
-    }
-    
-    /**
-     * Gets the performance config.
-     */
-    public FileConfiguration getPerformanceConfig() {
-        return configs.get("performance");
-    }
-    
-    /**
-     * Gets the UI config.
-     */
-    public FileConfiguration getUIConfig() {
-        return configs.get("ui");
-    }
-    
-    /**
-     * Gets all custom setting configs.
-     */
-    public Map<String, FileConfiguration> getCustomSettingConfigs() {
-        Map<String, FileConfiguration> customConfigs = new HashMap<>();
-        for (Map.Entry<String, FileConfiguration> entry : configs.entrySet()) {
-            if (entry.getKey().startsWith("custom_")) {
-                customConfigs.put(entry.getKey(), entry.getValue());
+    public synchronized boolean reloadAll() {
+        try {
+            Map<String, FileConfiguration> candidate = new LinkedHashMap<>();
+            Map<String, File> files = new LinkedHashMap<>();
+            loadOwner(candidate, files, "config");
+            loadOwner(candidate, files, "settings");
+            loadOwner(candidate, files, "messages");
+            loadOwner(candidate, files, "performance");
+            loadOwner(candidate, files, "ui");
+
+            File settingsFolder = new File(plugin.getDataFolder(), "settings");
+            File[] customFiles = settingsFolder.listFiles((dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".yml"));
+            if (customFiles != null) {
+                java.util.Arrays.sort(customFiles, java.util.Comparator.comparing(File::getName));
+                for (File file : customFiles) {
+                    String name = file.getName().substring(0, file.getName().length() - 4);
+                    candidate.put("custom_" + name, loadStrict(file));
+                    files.put("custom_" + name, file);
+                }
             }
+
+            FileConfiguration packaged = loadResourceStrict("settings.yml");
+            FileConfiguration preset = loadResourceStrict("presets/donutsmp.yml");
+            String activePreset = normalizePreset(candidate.get("config").getString("preset.active", "classic"));
+            FileConfiguration presetOverrides = "donutsmp".equals(activePreset)
+                ? sectionCopy(preset.getConfigurationSection("overrides"))
+                : new YamlConfiguration();
+            FileConfiguration effective = ConfigurationMerger.mergePreset(
+                packaged, presetOverrides, candidate.get("settings")
+            );
+
+            if (!configs.isEmpty()) {
+                previousState = new ConfigState(
+                    configs, configFiles, packagedSettings, donutPreset, effectiveSettings
+                );
+            }
+            configs = Map.copyOf(candidate);
+            configFiles = Map.copyOf(files);
+            packagedSettings = packaged;
+            donutPreset = preset;
+            effectiveSettings = effective;
+            lastLoadError = null;
+            return true;
+        } catch (IOException | InvalidConfigurationException exception) {
+            lastLoadError = exception.getMessage();
+            plugin.getLogger().log(Level.SEVERE,
+                "Configuration reload rejected; the current live settings remain active. " + exception.getMessage(), exception);
+            return false;
         }
-        return customConfigs;
     }
-    
-    /**
-     * Saves a specific config file.
-     */
+
+    private void loadOwner(Map<String, FileConfiguration> target, Map<String, File> files, String name)
+        throws IOException, InvalidConfigurationException {
+        File file = new File(plugin.getDataFolder(), name + ".yml");
+        target.put(name, loadStrict(file));
+        files.put(name, file);
+    }
+
+    static YamlConfiguration loadStrict(File file) throws IOException, InvalidConfigurationException {
+        YamlConfiguration yaml = new YamlConfiguration();
+        yaml.load(file);
+        return yaml;
+    }
+
+    private YamlConfiguration loadResourceStrict(String path) throws IOException, InvalidConfigurationException {
+        InputStream stream = plugin.getResource(path);
+        if (stream == null) throw new IOException("Missing packaged resource " + path);
+        try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+            YamlConfiguration yaml = new YamlConfiguration();
+            yaml.load(reader);
+            return yaml;
+        }
+    }
+
+    private static YamlConfiguration sectionCopy(org.bukkit.configuration.ConfigurationSection section) {
+        return section == null ? new YamlConfiguration() : ConfigurationMerger.merge(section);
+    }
+
+    public static String normalizePreset(String value) {
+        return value != null && value.equalsIgnoreCase("donutsmp") ? "donutsmp" : "classic";
+    }
+
+    public FileConfiguration getConfig(String name) {
+        return configs.getOrDefault(name, configs.get("config"));
+    }
+
+    public FileConfiguration getMainConfig() { return configs.get("config"); }
+    public FileConfiguration getSettingsConfig() { return configs.get("settings"); }
+    public FileConfiguration getPackagedSettingsConfig() { return packagedSettings; }
+    public FileConfiguration getEffectiveSettingsConfig() { return effectiveSettings; }
+    public FileConfiguration getMessagesConfig() { return configs.get("messages"); }
+    public FileConfiguration getPerformanceConfig() { return configs.get("performance"); }
+    public FileConfiguration getUIConfig() { return configs.get("ui"); }
+    public FileConfiguration getDonutPresetConfig() { return donutPreset; }
+    public String getActivePreset() {
+        return normalizePreset(getMainConfig().getString("preset.active", "classic"));
+    }
+    public boolean hideUnavailable() {
+        return getMainConfig().getBoolean("preset.hide-unavailable", false);
+    }
+    public String getLastLoadError() { return lastLoadError; }
+
+    /** Marks the parsed candidate as the accepted live configuration. */
+    public synchronized void acceptReload() {
+        previousState = null;
+    }
+
+    /** Restores the last accepted configuration after semantic registry validation fails. */
+    public synchronized void rollbackReload() {
+        if (previousState == null) return;
+        configs = previousState.configs();
+        configFiles = previousState.configFiles();
+        packagedSettings = previousState.packagedSettings();
+        donutPreset = previousState.donutPreset();
+        effectiveSettings = previousState.effectiveSettings();
+        previousState = null;
+    }
+
+    public Map<String, FileConfiguration> getCustomSettingConfigs() {
+        Map<String, FileConfiguration> result = new LinkedHashMap<>();
+        configs.forEach((name, config) -> {
+            if (name.startsWith("custom_")) result.put(name, config);
+        });
+        return Map.copyOf(result);
+    }
+
     public void saveConfig(String name) {
         FileConfiguration config = configs.get(name);
         File file = configFiles.get(name);
-        
-        if (config != null && file != null) {
-            try {
-                config.save(file);
-            } catch (IOException e) {
-                plugin.getLogger().log(Level.SEVERE, "Failed to save " + name + ".yml", e);
-            }
+        if (config == null || file == null) return;
+        try {
+            config.save(file);
+        } catch (IOException exception) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to save " + name + ".yml", exception);
         }
     }
-    
-    /**
-     * Reloads all configuration files.
-     */
-    public void reloadAll() {
-        plugin.reloadConfig();
-        configs.clear();
-        configFiles.clear();
-        loadConfigs();
-    }
+
+    private record ConfigState(
+        Map<String, FileConfiguration> configs,
+        Map<String, File> configFiles,
+        FileConfiguration packagedSettings,
+        FileConfiguration donutPreset,
+        FileConfiguration effectiveSettings
+    ) {}
 }
